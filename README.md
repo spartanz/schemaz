@@ -34,3 +34,5 @@ Scalaz Schema shares ideas with @nuttycom's [xenomorph](https://github.com/nutty
 
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=oRLkb6mqvVM" target="_blank"><img src="http://img.youtube.com/vi/oRLkb6mqvVM/0.jpg" 
 alt="Describing Data...with free applicative functors (and more)—Kris Nuttycombe" width="240" height="180" border="10" /></a>
+
+An Haskell port of the ideas of xenomorph has also been implemented: [haskell-schema](https://github.com/alonsodomin/haskell-schema).
