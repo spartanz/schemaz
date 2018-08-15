@@ -7,11 +7,11 @@ object ScalaSchema {
 }
 
 object JsonSchema {
-  type Prim[A] = JsonPrim
+  type Prim[A] = JsonPrim[A]
 
-  sealed trait JsonPrim
-  case object JsonString extends JsonPrim
-  case object JsonNumber extends JsonPrim
-  case object JsonBool extends JsonPrim
-  case object JsonNull extends JsonPrim
+  sealed trait JsonPrim[A]
+  final case object JsonString extends JsonPrim[String]
+  final case object JsonNumber extends JsonPrim[BigDecimal]
+  final case object JsonBool   extends JsonPrim[Boolean]
+  final case object JsonNull   extends JsonPrim[Null]
 }
