@@ -1,10 +1,11 @@
 package scalaz
+
 package schema
 
-
 object ScalaSchema {
-  type Prim[A] = ???
+  type Prim[A] = Nothing
 }
+
 object JsonSchema {
-  type Prim[A] = ???
+  type Prim[A] = Nothing
 }
