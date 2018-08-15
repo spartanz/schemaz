@@ -9,10 +9,33 @@ trait SchemaModule {
   type SumTermId
   type ProductTermId
 
-  def prim[A](prim: Prim[A]): Schema[A]                                                = Schema.PrimSchema(prim)
-  def record[A](field: Schema.Field[A, _], fields: Schema.Field[A, _]*): Schema[A]     = ???
-  def union[A](branch: Schema.Branch[A, _], branches: Schema.Branch[A, _]*): Schema[A] = ???
-  def seq[A](element: Schema[A]): Schema[List[A]]                                      = ???
+  def prim[A](prim: Prim[A]): Schema[A] = Schema.PrimSchema(prim)
+
+  def record[A](field: Schema.Field[A, _], fields: Schema.Field[A, _]*): Schema[A] =
+    Schema.RecordSchema(NonEmptyList.nels(field, fields: _*))
+
+  def union[A](branch: Schema.Branch[A, _], branches: Schema.Branch[A, _]*): Schema[A] =
+    Schema.Union(NonEmptyList.nels(branch, branches: _*))
+
+  def seq[A](element: Schema[A]): Schema[List[A]] = Schema.SeqSchema(element)
+
+  def essentialField[A, A0](
+    id: ProductTermId,
+    base: Schema[A0],
+    getter: Getter[A, A0],
+    default: Option[A0]
+  ): Schema.Field[A, A0] =
+    Schema.Field.Essential(id, base, getter, default)
+
+  def nonEssentialField[A, A0](
+    id: ProductTermId,
+    base: Schema[A0],
+    getter: monocle.Optional[A, A0]
+  ): Schema.Field[A, Option[A0]] =
+    Schema.Field.NonEssential(id, base, getter)
+
+  def branch[A, A0](id: SumTermId, base: Schema[A0], prism: Prism[A, A0]): Schema.Branch[A, A0] =
+    Schema.Branch(id, base, prism)
 
   sealed trait Schema[A]
 
