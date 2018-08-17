@@ -4,6 +4,10 @@ package schema
 
 import monocle.{ Getter, Prism }
 
+trait Schema[A] {
+  def apply(module: SchemaModule): module.Schema[A]
+}
+
 trait SchemaModule {
   type Prim[A]
   type SumTermId
