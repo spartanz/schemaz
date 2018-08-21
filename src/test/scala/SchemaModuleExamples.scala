@@ -32,6 +32,42 @@ object SchemaModuleExamples {
 
   }
 
+  object PersonSchema extends Schema[Person] {
+
+    def apply(module: SchemaModule): module.Schema[Person] = {
+      import module._
+      record[Person](
+        essentialField[Person, String](
+          "name",
+          prim(JsonSchema.JsonString),
+          Person.name,
+          None
+        ),
+        nonEssentialField[Person, Role](
+          "role",
+          union[Role](
+            branch(
+              "user",
+              record[User](
+                essentialField("active", prim(JsonSchema.JsonBool), Person.active, None)
+              ),
+              Person.user
+            ),
+            branch(
+              "admin",
+              record[Admin](
+                essentialField("rights", seq(prim(JsonSchema.JsonString)), Person.rights, None)
+              ),
+              Person.admin
+            )
+          ),
+          Person.role
+        )
+      )
+
+    }
+  }
+
   def tests[T](harness: Harness[T]): T = {
     import harness._
     import jsonModule._
@@ -39,34 +75,35 @@ object SchemaModuleExamples {
 
     section("Manipulating Schemas")(
       test("Building Schemas using the smart constructors") { () =>
-        val personSchema = record[Person](
-          essentialField[Person, String](
-            "name",
-            prim(JsonSchema.JsonString),
-            Person.name,
-            None
-          ),
-          nonEssentialField[Person, Role](
-            "role",
-            union[Role](
-              branch(
-                "user",
-                record[User](
-                  essentialField("active", prim(JsonSchema.JsonBool), Person.active, None)
-                ),
-                Person.user
-              ),
-              branch(
-                "admin",
-                record[Admin](
-                  essentialField("rights", seq(prim(JsonSchema.JsonString)), Person.rights, None)
-                ),
-                Person.admin
-              )
+        val personSchema =
+          record[Person](
+            essentialField[Person, String](
+              "name",
+              prim(JsonSchema.JsonString),
+              Person.name,
+              None
             ),
-            Person.role
+            nonEssentialField[Person, Role](
+              "role",
+              union[Role](
+                branch(
+                  "user",
+                  record[User](
+                    essentialField("active", prim(JsonSchema.JsonBool), Person.active, None)
+                  ),
+                  Person.user
+                ),
+                branch(
+                  "admin",
+                  record[Admin](
+                    essentialField("rights", seq(prim(JsonSchema.JsonString)), Person.rights, None)
+                  ),
+                  Person.admin
+                )
+              ),
+              Person.role
+            )
           )
-        )
         val expected =
           RecordSchema[Person](
             NonEmptyList.nels(
