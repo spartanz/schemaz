@@ -3,7 +3,22 @@ package scalaz
 package schema
 
 object ScalaSchema {
-  type Prim[A] = Nothing
+  type Prim[A] = ScalaPrim[A]
+
+  sealed trait ScalaPrim[A]
+
+  final case object ScalaShort      extends ScalaPrim[Short]
+  final case object ScalaInt        extends ScalaPrim[Int]
+  final case object ScalaLong       extends ScalaPrim[Long]
+  final case object ScalaFloat      extends ScalaPrim[Float]
+  final case object ScalaDouble     extends ScalaPrim[Double]
+  final case object ScalaBigDecimal extends ScalaPrim[BigDecimal]
+  final case object ScalaBype       extends ScalaPrim[Byte]
+  final case object ScalaString     extends ScalaPrim[String]
+  final case object ScalaChar       extends ScalaPrim[Char]
+  final case object ScalaBoolean    extends ScalaPrim[Boolean]
+  final case object ScalaTemporal   extends ScalaPrim[java.time.temporal.Temporal]
+  final case object ScalaUnit       extends ScalaPrim[Unit]
 }
 
 object JsonSchema {
