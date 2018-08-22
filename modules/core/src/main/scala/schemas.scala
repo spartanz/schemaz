@@ -13,7 +13,7 @@ object ScalaSchema {
   final case object ScalaFloat      extends ScalaPrim[Float]
   final case object ScalaDouble     extends ScalaPrim[Double]
   final case object ScalaBigDecimal extends ScalaPrim[BigDecimal]
-  final case object ScalaBype       extends ScalaPrim[Byte]
+  final case object ScalaByte       extends ScalaPrim[Byte]
   final case object ScalaString     extends ScalaPrim[String]
   final case object ScalaChar       extends ScalaPrim[Char]
   final case object ScalaBoolean    extends ScalaPrim[Boolean]
