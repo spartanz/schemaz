@@ -7,15 +7,23 @@ val monocleVersion = "1.5.0"
 lazy val root = project
   .in(file("."))
   .settings(
-    name := "scalaz-schema",
-    libraryDependencies ++= Seq(
-      "com.github.julien-truffaut" %% "monocle-core"  % monocleVersion,
-      "com.github.julien-truffaut" %% "monocle-macro" % monocleVersion,
-      "org.scalaz"                 %% "testz-core"    % testzVersion % "test",
-      "org.scalaz"                 %% "testz-stdlib"  % testzVersion % "test",
-      "org.scalaz"                 %% "testz-runner"  % testzVersion % "test"
-    ).map(_.exclude("org.scalaz", "scalaz"))
+    name := "scalaz-schema"
+  )
+  .aggregate(
+    core, scalacheck
   )
   .dependsOn(scalaz)
 
-lazy val scalacheck = project.in(file("modules/scalacheck")).dependsOn(root)
+lazy val core = project.in(file("modules/core"))
+    .settings(
+      name := "scalaz-schema-core",
+      libraryDependencies ++= Seq(
+        "com.github.julien-truffaut" %% "monocle-core"  % monocleVersion,
+        "com.github.julien-truffaut" %% "monocle-macro" % monocleVersion,
+        "org.scalaz"                 %% "testz-core"    % testzVersion % "test",
+        "org.scalaz"                 %% "testz-stdlib"  % testzVersion % "test",
+        "org.scalaz"                 %% "testz-runner"  % testzVersion % "test"
+      ).map(_.exclude("org.scalaz", "scalaz"))
+    )
+
+lazy val scalacheck = project.in(file("modules/scalacheck")).dependsOn(core)
