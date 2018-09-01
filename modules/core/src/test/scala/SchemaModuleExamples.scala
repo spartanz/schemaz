@@ -6,6 +6,8 @@ import testz._
 import monocle._
 import monocle.macros._
 
+import scalaz.Scalaz._
+
 object SchemaModuleExamples {
 
   val jsonModule = new SchemaModule {
@@ -40,79 +42,91 @@ object SchemaModuleExamples {
     section("Manipulating Schemas")(
       test("Building Schemas using the smart constructors") { () =>
         val personSchema = record[Person](
-          essentialField[Person, String](
-            "name",
-            prim(JsonSchema.JsonString),
-            Person.name,
-            None
-          ),
-          nonEssentialField[Person, Role](
-            "role",
-            union[Role](
-              branch(
-                "user",
-                record[User](
-                  essentialField("active", prim(JsonSchema.JsonBool), Person.active, None)
-                ),
-                Person.user
-              ),
-              branch(
-                "admin",
-                record[Admin](
-                  essentialField("rights", seq(prim(JsonSchema.JsonString)), Person.rights, None)
-                ),
-                Person.admin
-              )
+          ^(
+            essentialField[Person, String](
+              "name",
+              prim(JsonSchema.JsonString),
+              Person.name,
+              None
             ),
-            Person.role
-          )
+            nonEssentialField[Person, Role](
+              "role",
+              union[Role](
+                branch(
+                  "user",
+                  record[User](
+                    essentialField("active", prim(JsonSchema.JsonBool), Person.active, None)
+                      .map(User.apply)
+                  ),
+                  Person.user
+                ),
+                branch(
+                  "admin",
+                  record[Admin](
+                    essentialField("rights", seq(prim(JsonSchema.JsonString)), Person.rights, None)
+                      .map(Admin.apply)
+                  ),
+                  Person.admin
+                )
+              ),
+              Person.role
+            )
+          )(Person.apply)
         )
         val expected =
           RecordSchema[Person](
-            NonEmptyList.nels(
-              Field.Essential[Person, String](
-                "name",
-                PrimSchema(JsonSchema.JsonString),
-                Person.name,
-                None
+            ^(
+              FreeAp.lift[Field[Person, ?], String](
+                Field.Essential(
+                  "name",
+                  PrimSchema(JsonSchema.JsonString),
+                  Person.name,
+                  None
+                )
               ),
-              Field.NonEssential[Person, Role](
-                "role",
-                Union(
-                  NonEmptyList.nels(
-                    Branch[Role, User](
-                      "user",
-                      RecordSchema[User](
-                        NonEmptyList.nels(
-                          Field.Essential(
-                            "active",
-                            PrimSchema(JsonSchema.JsonBool),
-                            Person.active,
-                            None
-                          )
-                        )
+              FreeAp.lift[Field[Person, ?], Option[Role]](
+                Field.NonEssential(
+                  "role",
+                  Union(
+                    NonEmptyList.nels[Branch[Role, _]](
+                      Branch[Role, User](
+                        "user",
+                        RecordSchema[User](
+                          FreeAp
+                            .lift[Field[User, ?], Boolean](
+                              Field.Essential(
+                                "active",
+                                PrimSchema(JsonSchema.JsonBool),
+                                Person.active,
+                                None
+                              )
+                            )
+                            .map(User)
+                        ),
+                        Person.user
                       ),
-                      Person.user
-                    ),
-                    Branch[Role, Admin](
-                      "admin",
-                      RecordSchema[Admin](
-                        NonEmptyList.nels(
-                          Field.Essential(
-                            "rights",
-                            SeqSchema(PrimSchema(JsonSchema.JsonString)),
-                            Person.rights,
-                            None
-                          )
-                        )
-                      ),
-                      Person.admin
+                      Branch[Role, Admin](
+                        "admin",
+                        RecordSchema[Admin](
+                          FreeAp
+                            .lift[Field[Admin, ?], List[String]](
+                              Field.Essential(
+                                "rights",
+                                SeqSchema(PrimSchema(JsonSchema.JsonString)),
+                                Person.rights,
+                                None
+                              )
+                            )
+                            .map(Admin)
+                        ),
+                        Person.admin
+                      )
                     )
-                  )
-                ),
-                Person.role
+                  ),
+                  Person.role
+                )
               )
-            )
+            )(Person.apply)
           )
         assert(personSchema == expected)
       }

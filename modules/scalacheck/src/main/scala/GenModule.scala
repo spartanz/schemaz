@@ -8,33 +8,60 @@ import org.scalacheck.Gen
 
 trait GenModule extends SchemaModule {
 
-  def toGen: Schema ~> Gen = new (Schema ~> Gen) {
+  trait ToGen[S[_]] {
+    def toGen: S ~> Gen
+  }
+
+  implicit class ToGenOps[A](schema: Schema[A]) {
+
+    def toGen(implicit primToGen: Prim ~> Gen): Gen[A] =
+      schemeToGen(primToGen)(schema)
+  }
+
+  private def schemeToGen(implicit primToGen: Prim ~> Gen): Schema ~> Gen = new (Schema ~> Gen) {
     override def apply[A](schema: Schema[A]): Gen[A] = schema match {
-      case _: Schema.PrimSchema[_]        => ???
+      case prim: Schema.PrimSchema[_]     => primToGen(prim.prim)
       case record: Schema.RecordSchema[_] => recordGen(record)
       case union: Schema.Union[_]         => unionGen(union)
       case seq: Schema.SeqSchema[_]       => seqGen(seq)
     }
   }
 
-  def recordGen[A](schema: Schema.RecordSchema[A]): Gen[A] = {
-    schema.terms.map {
-      case essential: Schema.Field.Essential[_, _]       => toGen(essential.base)
-      case nonEssential: Schema.Field.NonEssential[_, _] => Gen.option(toGen(nonEssential.base))
+  private def recordGen[A](
+    schema: Schema.RecordSchema[A]
+  )(implicit
+    primToGen: Prim ~> Gen
+  ): Gen[A] = {
+    implicit val genAp: Applicative[Gen] = new Applicative[Gen] {
+      override def ap[T, U](fa: => Gen[T])(f: => Gen[T => U]): Gen[U] = fa.flatMap(a => f.map(_(a)))
+      override def point[T](a: => T): Gen[T]                          = Gen.const(a)
     }
 
-    ???
+    schema.fields.foldMap(new (Schema.Field[A, ?] ~> Gen) {
+      override def apply[B](fa: Schema.Field[A, B]): Gen[B] = fa match {
+        case Schema.Field.Essential(_, base, _, _) => schemeToGen(primToGen)(base)
+        case Schema.Field.NonEssential(_, base, _) => Gen.option(schemeToGen(primToGen)(base))
+      }
+    })
   }
 
-  def unionGen[A](schema: Schema.Union[A]): Gen[A] = {
+  private def unionGen[A](schema: Schema.Union[A])(implicit primToGen: Prim ~> Gen): Gen[A] = {
     val branchGens = schema.terms.map(term => branchGen(term))
     branchGens.tail.headOption
       .fold(branchGens.head)(g => Gen.oneOf(branchGens.head, g, branchGens.tail.toList.tail: _*))
   }
 
-  def branchGen[A, A0](branch: Schema.Branch[A, A0]): Gen[A] =
-    toGen[A0](branch.base).map(branch.prism.reverseGet)
+  private def branchGen[A, A0](
+    branch: Schema.Branch[A, A0]
+  )(implicit
+    primToGen: Prim ~> Gen
+  ): Gen[A] =
+    schemeToGen(primToGen)(branch.base).map(branch.prism.reverseGet)
 
-  def seqGen[A](schema: Schema.SeqSchema[A]): Gen[List[A]] =
-    Gen.listOf(toGen(schema.element))
+  private def seqGen[A](
+    schema: Schema.SeqSchema[A]
+  )(implicit
+    primToGen: Prim ~> Gen
+  ): Gen[List[A]] =
+    Gen.listOf(schemeToGen(primToGen)(schema.element))
 }
