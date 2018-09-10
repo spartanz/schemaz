@@ -25,14 +25,18 @@ trait SchemaModule {
     getter: Getter[A, A0],
     default: Option[A0]
   ): FreeAp[Schema.Field[A, ?], A0] =
-    FreeAp.lift[Schema.Field[A, ?], A0](Schema.Field.Essential[A, A0](id, base, getter, default))
+    FreeAp.lift[Schema.Field[A, ?], A0](
+      Schema.Field.Essential[A, A0](id, base, getter, default)
+    )
 
   def nonEssentialField[A, A0](
     id: ProductTermId,
     base: Schema[A0],
     getter: monocle.Optional[A, A0]
   ): FreeAp[Schema.Field[A, ?], Option[A0]] =
-    FreeAp.lift[Schema.Field[A, ?], Option[A0]](Schema.Field.NonEssential(id, base, getter))
+    FreeAp.lift[Schema.Field[A, ?], Option[A0]](
+      Schema.Field.NonEssential(id, base, getter)
+    )
 
   def branch[A, A0](id: SumTermId, base: Schema[A0], prism: Prism[A, A0]): Schema.Branch[A, A0] =
     Schema.Branch(id, base, prism)

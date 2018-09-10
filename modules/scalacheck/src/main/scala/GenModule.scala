@@ -15,17 +15,18 @@ trait GenModule extends SchemaModule {
   implicit class ToGenOps[A](schema: Schema[A]) {
 
     def toGen(implicit primToGen: Prim ~> Gen): Gen[A] =
-      schemeToGen(primToGen)(schema)
+      schemaToGen(primToGen)(schema)
   }
 
-  private def schemeToGen(implicit primToGen: Prim ~> Gen): Schema ~> Gen = new (Schema ~> Gen) {
-    override def apply[A](schema: Schema[A]): Gen[A] = schema match {
-      case prim: Schema.PrimSchema[_]     => primToGen(prim.prim)
-      case record: Schema.RecordSchema[_] => recordGen(record)
-      case union: Schema.Union[_]         => unionGen(union)
-      case seq: Schema.SeqSchema[_]       => seqGen(seq)
+  private def schemaToGen(implicit primToGen: Prim ~> Gen): Schema ~> Gen =
+    new (Schema ~> Gen) {
+      override def apply[A](schema: Schema[A]): Gen[A] = schema match {
+        case prim: Schema.PrimSchema[_]     => primToGen(prim.prim)
+        case record: Schema.RecordSchema[_] => recordGen(record)
+        case union: Schema.Union[_]         => unionGen(union)
+        case seq: Schema.SeqSchema[_]       => seqGen(seq)
+      }
     }
-  }
 
   private def recordGen[A](
     schema: Schema.RecordSchema[A]
@@ -33,14 +34,17 @@ trait GenModule extends SchemaModule {
     primToGen: Prim ~> Gen
   ): Gen[A] = {
     implicit val genAp: Applicative[Gen] = new Applicative[Gen] {
-      override def ap[T, U](fa: => Gen[T])(f: => Gen[T => U]): Gen[U] = fa.flatMap(a => f.map(_(a)))
-      override def point[T](a: => T): Gen[T]                          = Gen.const(a)
+      override def ap[T, U](fa: => Gen[T])(f: => Gen[T => U]): Gen[U] =
+        fa.flatMap(a => f.map(_(a)))
+      override def point[T](a: => T): Gen[T] = Gen.const(a)
     }
 
     schema.fields.foldMap(new (Schema.Field[A, ?] ~> Gen) {
       override def apply[B](fa: Schema.Field[A, B]): Gen[B] = fa match {
-        case Schema.Field.Essential(_, base, _, _) => schemeToGen(primToGen)(base)
-        case Schema.Field.NonEssential(_, base, _) => Gen.option(schemeToGen(primToGen)(base))
+        case Schema.Field.Essential(_, base, _, _) =>
+          schemaToGen(primToGen)(base)
+        case Schema.Field.NonEssential(_, base, _) =>
+          Gen.option(schemaToGen(primToGen)(base))
       }
     })
   }
@@ -48,7 +52,9 @@ trait GenModule extends SchemaModule {
   private def unionGen[A](schema: Schema.Union[A])(implicit primToGen: Prim ~> Gen): Gen[A] = {
     val branchGens = schema.terms.map(term => branchGen(term))
     branchGens.tail.headOption
-      .fold(branchGens.head)(g => Gen.oneOf(branchGens.head, g, branchGens.tail.toList.tail: _*))
+      .fold(branchGens.head)(
+        g => Gen.oneOf(branchGens.head, g, branchGens.tail.toList.tail: _*)
+      )
   }
 
   private def branchGen[A, A0](
@@ -56,12 +62,12 @@ trait GenModule extends SchemaModule {
   )(implicit
     primToGen: Prim ~> Gen
   ): Gen[A] =
-    schemeToGen(primToGen)(branch.base).map(branch.prism.reverseGet)
+    schemaToGen(primToGen)(branch.base).map(branch.prism.reverseGet)
 
   private def seqGen[A](
     schema: Schema.SeqSchema[A]
   )(implicit
     primToGen: Prim ~> Gen
   ): Gen[List[A]] =
-    Gen.listOf(schemeToGen(primToGen)(schema.element))
+    Gen.listOf(schemaToGen(primToGen)(schema.element))
 }
