@@ -61,13 +61,13 @@ trait SchemaModule {
         id: ProductTermId,
         base: Schema[A0],
         getter: Getter[A, A0],
-        default: Option[A0])
-          extends Field[A, A0]
+        default: Option[A0]
+      ) extends Field[A, A0]
       sealed case class NonEssential[A, A0](
         id: ProductTermId,
         base: Schema[A0],
-        getter: monocle.Optional[A, A0])
-          extends Field[A, Option[A0]]
+        getter: monocle.Optional[A, A0]
+      ) extends Field[A, Option[A0]]
     }
 
     /**

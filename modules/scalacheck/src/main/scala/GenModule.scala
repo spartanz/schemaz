@@ -30,7 +30,8 @@ trait GenModule extends SchemaModule {
 
   private def recordGen[A](
     schema: Schema.RecordSchema[A]
-  )(implicit
+  )(
+    implicit
     primToGen: Prim ~> Gen
   ): Gen[A] = {
     implicit val genAp: Applicative[Gen] = new Applicative[Gen] {
@@ -59,14 +60,16 @@ trait GenModule extends SchemaModule {
 
   private def branchGen[A, A0](
     branch: Schema.Branch[A, A0]
-  )(implicit
+  )(
+    implicit
     primToGen: Prim ~> Gen
   ): Gen[A] =
     schemaToGen(primToGen)(branch.base).map(branch.prism.reverseGet)
 
   private def seqGen[A](
     schema: Schema.SeqSchema[A]
-  )(implicit
+  )(
+    implicit
     primToGen: Prim ~> Gen
   ): Gen[List[A]] =
     Gen.listOf(schemaToGen(primToGen)(schema.element))
