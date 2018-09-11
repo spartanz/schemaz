@@ -4,7 +4,7 @@ import scalaz.Scalaz._
 import scalaz.schema._
 import scalaz.schema.JsonSchema.{ JsonBool, JsonNull, JsonNumber, JsonString }
 import scalaz.schema.scalacheck.GenModule
-import scalaz.{ schema, ~> }
+import scalaz.~>
 
 object GenModuleExamples {
 
@@ -22,45 +22,50 @@ object GenModuleExamples {
 
     section("Generating Gens")(
       test("Convert Schema to Gen") { () =>
-        val personSchema = record[Person](
-          ^(
-            essentialField[Person, String](
-              "name",
-              prim(JsonSchema.JsonString),
-              Person.name,
-              None
-            ),
-            nonEssentialField[Person, Role](
-              "role",
-              union[Role](
-                branch(
-                  "user",
-                  record[User](
-                    essentialField(
-                      "active",
-                      prim(JsonSchema.JsonBool),
-                      Person.active,
-                      None
-                    ).map(User.apply)
-                  ),
-                  Person.user
-                ),
-                branch(
-                  "admin",
-                  record[Admin](
-                    essentialField(
-                      "rights",
-                      seq(prim(JsonSchema.JsonString)),
-                      Person.rights,
-                      None
-                    ).map(Admin.apply)
-                  ),
-                  Person.admin
-                )
+        type PersonTuple = (Seq[Char], Option[Role])
+
+        val personTupleSchema = iso[Person, PersonTuple](
+          record[Person](
+            ^(
+              essentialField[Person, String](
+                "name",
+                prim(JsonSchema.JsonString),
+                Person.name,
+                None
               ),
-              Person.role
-            )
-          )(Person.apply)
+              nonEssentialField[Person, Role](
+                "role",
+                union[Role](
+                  branch(
+                    "user",
+                    record[User](
+                      essentialField(
+                        "active",
+                        prim(JsonSchema.JsonBool),
+                        Person.active,
+                        None
+                      ).map(User.apply)
+                    ),
+                    Person.user
+                  ),
+                  branch(
+                    "admin",
+                    record[Admin](
+                      essentialField(
+                        "rights",
+                        seq(prim(JsonSchema.JsonString)),
+                        Person.rights,
+                        None
+                      ).map(Admin.apply)
+                    ),
+                    Person.admin
+                  )
+                ),
+                Person.role
+              )
+            )(Person.apply)
+          ),
+          Person.personToTupleIso
         )
 
         implicit val primToGenNT = new (Prim ~> Gen) {
@@ -72,7 +77,7 @@ object GenModuleExamples {
           }
         }
 
-        val personGen: Gen[Person] = personSchema.toGen
+        val personGen: Gen[PersonTuple] = personTupleSchema.toGen
 
         val expectedUserGen: Gen[User] = for {
           active <- arbitrary[Boolean]
@@ -82,21 +87,20 @@ object GenModuleExamples {
           rights <- Gen.listOf(arbitrary[String])
         } yield Admin(rights)
 
-        val expectedPersonGen: Gen[Person] = for {
-          name <- arbitrary[String]
+        val expectedPersonTupleGen: Gen[PersonTuple] = for {
+          name <- arbitrary[Seq[Char]]
           role <- Gen.option(Gen.oneOf(expectedUserGen, expectedAdminGen))
-        } yield schema.Person(name, role)
+        } yield (name, role)
 
         val genParameters = Gen.Parameters.default
         val genSeed       = Seed.random()
 
         // _.pureApply is not pure, it my throw Gen.RetrievalError
         assert(
-          personGen.pureApply(genParameters, genSeed) == expectedPersonGen
+          personGen.pureApply(genParameters, genSeed) == expectedPersonTupleGen
             .pureApply(genParameters, genSeed)
         )
       }
     )
   }
-
 }

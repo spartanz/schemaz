@@ -25,6 +25,7 @@ trait GenModule extends SchemaModule {
         case record: Schema.RecordSchema[_] => recordGen(record)
         case union: Schema.Union[_]         => unionGen(union)
         case seq: Schema.SeqSchema[_]       => seqGen(seq)
+        case iso: Schema.IsoSchema[_, _]    => schemaToGen(primToGen)(iso.base).map(iso.iso.get)
       }
     }
 

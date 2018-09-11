@@ -1,6 +1,6 @@
 package scalaz.schema
 
-import monocle.Getter
+import monocle.{ Getter, Iso }
 import monocle.macros.GenPrism
 
 final case class Person(name: String, role: Option[Role])
@@ -19,4 +19,9 @@ object Person {
   val admin  = GenPrism[Role, Admin]
   val active = Getter[User, Boolean](_.active)
   val rights = Getter[Admin, List[String]](_.rights)
+
+  private def f(p: Person): (Seq[Char], Option[Role]) = (p.name.toSeq, p.role)
+  private def g(t: (Seq[Char], Option[Role])): Person = Person(t._1.mkString, t._2)
+
+  val personToTupleIso = Iso[Person, (Seq[Char], Option[Role])](f)(g)
 }
