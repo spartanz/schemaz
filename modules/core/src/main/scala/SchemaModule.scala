@@ -2,7 +2,7 @@ package scalaz
 
 package schema
 
-import monocle.{ Getter, Prism }
+import monocle.{ Getter, Iso, Prism }
 
 trait SchemaModule {
   type Prim[A]
@@ -18,6 +18,8 @@ trait SchemaModule {
     Schema.Union(NonEmptyList.nels(branch, branches: _*))
 
   def seq[A](element: Schema[A]): Schema[List[A]] = Schema.SeqSchema(element)
+
+  def iso[A0, A](base: Schema[A0], iso: Iso[A0, A]): Schema[A] = Schema.IsoSchema(base, iso)
 
   def essentialField[A, A0](
     id: ProductTermId,
@@ -41,7 +43,9 @@ trait SchemaModule {
   def branch[A, A0](id: SumTermId, base: Schema[A0], prism: Prism[A, A0]): Schema.Branch[A, A0] =
     Schema.Branch(id, base, prism)
 
-  sealed trait Schema[A]
+  sealed trait Schema[A] { self =>
+    def imap[B](iso: Iso[A, B]): Schema[B] = Schema.IsoSchema(self, iso)
+  }
 
   object Schema {
     // Writing final here triggers a warning, using sealed instead achieves almost the same effect
@@ -50,6 +54,10 @@ trait SchemaModule {
     sealed case class Union[A](terms: NonEmptyList[Branch[A, _]])     extends Schema[A]
     sealed case class RecordSchema[A](fields: FreeAp[Field[A, ?], A]) extends Schema[A]
     sealed case class SeqSchema[A](element: Schema[A])                extends Schema[List[A]]
+    sealed case class IsoSchema[A0, A](base: Schema[A0], iso: Iso[A0, A]) extends Schema[A] {
+      override def imap[B](_iso: Iso[A, B]): Schema[B] =
+        IsoSchema(base, iso.composeIso(_iso))
+    }
 
     /**
      * A term of type `A0` in a sum of type `A`.
