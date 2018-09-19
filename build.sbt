@@ -1,8 +1,8 @@
-lazy val scalaz =
-  ProjectRef(
-    uri("git:https://github.com/scalaz/scalaz.git#series/8.0.x"),
-    "baseJVM"
-  )
+//lazy val scalaz =
+//  ProjectRef(
+//    uri("git:https://github.com/scalaz/scalaz.git#series/8.0.x"),
+//    "baseJVM"
+//  )
 
 val testzVersion   = "0.0.4"
 val monocleVersion = "1.5.0"
@@ -17,7 +17,7 @@ lazy val root = project
     scalacheck,
     `test-commons`
   )
-  .dependsOn(scalaz)
+  //.dependsOn(scalaz)
 
 lazy val core = project
   .in(file("modules/core"))
