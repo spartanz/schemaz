@@ -24,5 +24,4 @@ object Person {
   private def g(t: (Seq[Char], Option[Role])): Person = Person(t._1.mkString, t._2)
 
   val personToTupleIso = Iso[Person, (Seq[Char], Option[Role])](f)(g)
-
 }
