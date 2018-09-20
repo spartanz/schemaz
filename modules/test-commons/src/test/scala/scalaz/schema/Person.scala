@@ -1,8 +1,7 @@
 package scalaz.schema
 
-import monocle.{Getter, Iso}
+import monocle.{ Getter, Iso }
 import monocle.macros.GenPrism
-import scalaz.Scalaz.^
 
 final case class Person(name: String, role: Option[Role])
 sealed trait Role
@@ -26,48 +25,4 @@ object Person {
 
   val personToTupleIso = Iso[Person, (Seq[Char], Option[Role])](f)(g)
 
-
-  def schema(module:SchemaModule):module.Schema[Person] = {
-    import module._
-    record[Person](
-      ^(
-        essentialField[Person, String](
-          "name",
-          prim(JsonSchema.JsonString),
-          Person.name,
-          None
-        ),
-        nonEssentialField[Person, Role](
-          "role",
-          union[Role](
-            branch(
-              "user",
-              record[User](
-                essentialField(
-                  "active",
-                  prim(JsonSchema.JsonBool),
-                  Person.active,
-                  None
-                ).map(User.apply)
-              ),
-              Person.user
-            ),
-            branch(
-              "admin",
-              record[Admin](
-                essentialField(
-                  "rights",
-                  seq(prim(JsonSchema.JsonString)),
-                  Person.rights,
-                  None
-                ).map(Admin.apply)
-              ),
-              Person.admin
-            )
-          ),
-          Person.role
-        )
-      )(Person.apply)
-    )
-  }
 }

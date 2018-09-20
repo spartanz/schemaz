@@ -8,7 +8,6 @@ import scalaz.Scalaz._
 
 object SchemaModuleExamples {
 
-
   def tests[T](harness: Harness[T]): T = {
     import harness._
     import scalaz.schema.Json.module._
