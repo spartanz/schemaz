@@ -58,8 +58,14 @@ object JsonExamples {
           )(Person.apply)
         )
 
-        val serializer: Person => Either[ToJsonErrors, String] =
+        type PersonTuple = (Seq[Char], Option[Role])
+        val personTupleSchema = iso[Person, PersonTuple](schema, Person.personToTupleIso)
+
+        val serializer: Person => Either[ToJsonErrors, JSON] =
           jsonSerializer[Either[ToJsonErrors, ?], Person](schema)
+
+        val isoSerializer: PersonTuple => Either[ToJsonErrors, JSON] =
+          jsonSerializer[Either[ToJsonErrors, ?], PersonTuple](personTupleSchema)
 
         val testCases: List[(Person, String)] = List(
           Person("Alfred", None)                                      -> """{"name":"Alfred"}""",
@@ -71,34 +77,52 @@ object JsonExamples {
           (res, testCase) =>
             (res, testCase) match {
               case (Succeed, (data, expected)) =>
-                serializer(data)
-                  .fold(
-                    {
-                      case Json.UnionBranchError() =>
-                        Fail(
-                          List(Right("Union Branch Error (No Union Branch resulted in a Value)"))
-                        )
-                    },
-                    json => {
-                      val same = matchJsonStrings(json, expected)
+                ^(serializer(data), isoSerializer(Person.personToTupleIso.reverse(data)))(
+                  (json, isoJson) => {
+                    val same    = matchJsonStrings(json, expected)
+                    val isoSame = matchJsonStrings(isoJson, expected)
+
+                    val res =
                       if (same) Succeed else Fail(List(Right(s"got $json expected $expected")))
-                    }
-                  )
+                    val isoRes =
+                      if (isoSame) Succeed
+                      else Fail(List(Right(s"got $isoJson expected $expected")))
+
+                    Result.combine(res, isoRes)
+                  }
+                ).fold(
+                  {
+                    case Json.UnionBranchError() =>
+                      Fail(
+                        List(Right("Union Branch Error (No Union Branch resulted in a Value)"))
+                      )
+                  },
+                  identity
+                )
               case (fail: testz.Fail, (data, expected)) =>
-                serializer(data)
-                  .fold(
-                    {
-                      case Json.UnionBranchError() =>
-                        Fail(
-                          Right("Union Branch Error (No Union Branch resulted in a Value)") :: fail.failures
-                        )
-                    },
-                    json => {
-                      val same = matchJsonStrings(json, expected)
+                ^(serializer(data), isoSerializer(Person.personToTupleIso.reverse(data)))(
+                  (json, isoJson) => {
+                    val same    = matchJsonStrings(json, expected)
+                    val isoSame = matchJsonStrings(isoJson, expected)
+
+                    val res =
                       if (same) Succeed
                       else Fail(Right(s"got $json expected $expected") :: fail.failures)
-                    }
-                  )
+                    val isoRes =
+                      if (isoSame) Succeed
+                      else Fail(Right(s"got $isoJson expected $expected") :: fail.failures)
+
+                    Result.combine(res, isoRes)
+                  }
+                ).fold(
+                  {
+                    case Json.UnionBranchError() =>
+                      Fail(
+                        Right("Union Branch Error (No Union Branch resulted in a Value)") :: fail.failures
+                      )
+                  },
+                  identity
+                )
             }
         )
 
