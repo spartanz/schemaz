@@ -23,7 +23,7 @@ object Json {
       override def apply[A](fa: module.Prim[A]): A => JSON = fa match {
         case JsonString => a => s""""$a""""
         case JsonBool   => a => if (a) "true" else "false"
-        case JsonNull   => _ => null
+        case JsonNull   => _ => "null"
         case JsonNumber => a => a.shows
       }
     }

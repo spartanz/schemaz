@@ -68,6 +68,7 @@ object JsonExamples {
           jsonSerializer[Either[ToJsonErrors, ?], PersonTuple](personTupleSchema)
 
         val testCases: List[(Person, String)] = List(
+          Person(null, None)                                          -> """{"name":null}""",
           Person("Alfred", None)                                      -> """{"name":"Alfred"}""",
           Person("Alfred the Second", Some(User(true)))               -> """{"name":"Alfred the Second", "role": {"user": {"active":true}}}""",
           Person("Alfred the Third", Some(Admin(List("sys", "dev")))) -> """{"name":"Alfred the Third", "role": {"admin": {"rights": ["sys", "dev"]}}}"""
@@ -126,6 +127,48 @@ object JsonExamples {
             }
         )
 
+      },
+      test(
+        "Should Fail in M[_] when missing a Union Branch. Down the Line this Test can be deleted as constructing such a schema should become impossible"
+      ) { () =>
+        val schema = record[Person](
+          ^(
+            essentialField[Person, String](
+              "name",
+              prim(JsonSchema.JsonString),
+              Person.name,
+              None
+            ),
+            nonEssentialField[Person, Role](
+              "role",
+              union[Role](
+                branch(
+                  "user",
+                  record[User](
+                    essentialField(
+                      "active",
+                      prim(JsonSchema.JsonBool),
+                      Person.active,
+                      None
+                    ).map(User.apply)
+                  ),
+                  Person.user
+                )
+              ),
+              Person.role
+            )
+          )(Person.apply)
+        )
+
+        val serializer: Person => Either[ToJsonErrors, JSON] =
+          jsonSerializer[Either[ToJsonErrors, ?], Person](schema)
+
+        serializer(Person("Alfred", Some(Admin(List("foo"))))).fold[Result](
+          {
+            case Json.UnionBranchError() => Succeed
+          },
+          json => Fail.string(s"this should not have succeeded but returned: $json")
+        )
       }
     )
   }
