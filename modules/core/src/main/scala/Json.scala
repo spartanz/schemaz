@@ -37,38 +37,44 @@ object Json {
   Only place where there's a possible error is in the Union Branches and it "shouldn't ever be the case" I think. There should always be exactly ONE union branch applicable.
    */
   def jsonSerializer[M[_], A](
-    schema: module.Schema[A]
+    schemaModule: SchemaModule
+  )(
+    schema: schemaModule.Schema[A]
+  )(
+    productId: schemaModule.ProductTermId => module.ProductTermId,
+    sumId: schemaModule.SumTermId => module.SumTermId
   )(
     implicit
-    prims: ToJson[module.Prim],
+    prims: ToJson[schemaModule.Prim],
     M: MonadError[M, ToJsonErrors]
   ): A => M[JSON] = schema match {
-    case module.Schema.PrimSchema(prim)     => a => M.pure(prims.serializer(prim)(a))
-    case module.Schema.IsoSchema(base, iso) => a => jsonSerializer(base)(prims, M)(iso(a))
-    case module.Schema.RecordSchema(fields) =>
+    case schemaModule.Schema.PrimSchema(prim) => a => M.pure(prims.serializer(prim)(a))
+    case schemaModule.Schema.IsoSchema(base, iso) =>
+      a => jsonSerializer(schemaModule)(base)(productId, sumId)(prims, M)(iso(a))
+    case schemaModule.Schema.RecordSchema(fields) =>
       a =>
         fields
           .foldMap[λ[b => StateT[M, IList[JSON], Const[Unit, b]]]](
-            new (module.Schema.Field[A, ?] ~> λ[b => StateT[M, IList[JSON], Const[Unit, b]]]) {
+            new (schemaModule.Schema.Field[A, ?] ~> λ[b => StateT[M, IList[JSON], Const[Unit, b]]]) {
               override def apply[B](
-                fa: module.Schema.Field[A, B]
+                fa: schemaModule.Schema.Field[A, B]
               ): StateT[M, IList[String], Const[Unit, B]] =
                 fa match {
-                  case module.Schema.Field.Essential(id, base, getter, _) =>
+                  case schemaModule.Schema.Field.Essential(id, base, getter, _) =>
                     StateT.apply[M, IList[String], Const[Unit, B]](
                       flds => {
                         val b = getter.get(a)
-                        jsonSerializer(base)(prims, M)(b).map(
+                        jsonSerializer(schemaModule)(base)(productId, sumId)(prims, M)(b).map(
                           json =>
                             (
-                              (s""""$id": $json""") +: flds,
+                              (s""""${productId(id)}": $json""") +: flds,
                               Const.apply(())
                             )
                         )
 
                       }
                     )
-                  case module.Schema.Field.NonEssential(id, base, getter) =>
+                  case schemaModule.Schema.Field.NonEssential(id, base, getter) =>
                     getter
                       .getOption(a)
                       .fold(
@@ -80,10 +86,10 @@ object Json {
                         b =>
                           StateT.apply(
                             flds =>
-                              jsonSerializer(base)(prims, M)(b).map(
+                              jsonSerializer(schemaModule)(base)(productId, sumId)(prims, M)(b).map(
                                 json =>
                                   (
-                                    (s""""$id": $json""") +: flds,
+                                    (s""""${productId(id)}": $json""") +: flds,
                                     Const.apply(())
                                   )
                               )
@@ -101,23 +107,25 @@ object Json {
               .mkString("{", ",", "}")
           )
 
-    case module.Schema.SeqSchema(element) =>
+    case schemaModule.Schema.SeqSchema(element) =>
       a =>
-        Traverse[List].traverse(a)(jsonSerializer(element)(prims, M)).map(_.mkString("[", ",", "]"))
-    case module.Schema.Union(terms) =>
+        Traverse[List]
+          .traverse(a)(jsonSerializer(schemaModule)(element)(productId, sumId)(prims, M))
+          .map(_.mkString("[", ",", "]"))
+    case schemaModule.Schema.Union(terms) =>
       a => {
         terms
           .foldLeft(Option.empty[M[JSON]])(
             (opt, branch) =>
               (opt, branch) match {
                 case (x @ Some(_), _) => x
-                case (None, b: module.Schema.Branch[A, t]) =>
+                case (None, b: schemaModule.Schema.Branch[A, t]) =>
                   b.prism
                     .getOption(a)
                     .map(
                       value =>
-                        jsonSerializer(b.base)(prims, M)(value).map(
-                          json => s"""{"${branch.id}":$json}"""
+                        jsonSerializer(schemaModule)(b.base)(productId, sumId)(prims, M)(value).map(
+                          json => s"""{"${sumId(branch.id)}":$json}"""
                         )
                     )
               }

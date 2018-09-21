@@ -62,10 +62,13 @@ object JsonExamples {
         val personTupleSchema = iso[Person, PersonTuple](schema, Person.personToTupleIso)
 
         val serializer: Person => Either[ToJsonErrors, JSON] =
-          jsonSerializer[Either[ToJsonErrors, ?], Person](schema)
+          jsonSerializer[Either[ToJsonErrors, ?], Person](module)(schema)(identity, identity)
 
         val isoSerializer: PersonTuple => Either[ToJsonErrors, JSON] =
-          jsonSerializer[Either[ToJsonErrors, ?], PersonTuple](personTupleSchema)
+          jsonSerializer[Either[ToJsonErrors, ?], PersonTuple](module)(personTupleSchema)(
+            identity,
+            identity
+          )
 
         val testCases: List[(Person, String)] = List(
           Person(null, None)                                          -> """{"name":null}""",
@@ -161,7 +164,7 @@ object JsonExamples {
         )
 
         val serializer: Person => Either[ToJsonErrors, JSON] =
-          jsonSerializer[Either[ToJsonErrors, ?], Person](schema)
+          jsonSerializer[Either[ToJsonErrors, ?], Person](module)(schema)(identity, identity)
 
         serializer(Person("Alfred", Some(Admin(List("foo"))))).fold[Result](
           {
