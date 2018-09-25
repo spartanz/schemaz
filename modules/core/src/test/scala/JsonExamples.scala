@@ -100,9 +100,13 @@ object JsonExamples {
                   }
                 ).fold(
                   {
-                    case Json.UnionBranchError() =>
+                    case Json.UnionBranchError(a, s) =>
                       Fail(
-                        List(Right("Union Branch Error (No Union Branch resulted in a Value)"))
+                        List(
+                          Right(
+                            s"Union Branch Error (No Union Branch resulted in a Value) value : $a union schema: $s"
+                          )
+                        )
                       )
                   },
                   identity
@@ -124,9 +128,11 @@ object JsonExamples {
                   }
                 ).fold(
                   {
-                    case Json.UnionBranchError() =>
+                    case Json.UnionBranchError(a, s) =>
                       Fail(
-                        Right("Union Branch Error (No Union Branch resulted in a Value)") :: fail.failures
+                        Right(
+                          s"Union Branch Error (No Union Branch resulted in a Value) value : $a union schema: $s"
+                        ) :: fail.failures
                       )
                   },
                   identity
@@ -174,7 +180,7 @@ object JsonExamples {
 
         serializer(Person("Alfred", Some(Admin(List("foo"))))).fold[Result](
           {
-            case Json.UnionBranchError() => Succeed
+            case Json.UnionBranchError(_, _) => Succeed
           },
           json => Fail.string(s"this should not have succeeded but returned: $json")
         )

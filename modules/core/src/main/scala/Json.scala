@@ -30,7 +30,7 @@ object Json {
   }
 
   sealed trait ToJsonErrors
-  final case class UnionBranchError() extends ToJsonErrors
+  final case class UnionBranchError[A, S](a: A, schema: S) extends ToJsonErrors
 
   /*
   I am not happy with a couple of thins. Namely with the requirement of a MonadError here. I think ApplicativeError should be enough and it shouldn't be needed in the first place.
@@ -99,7 +99,7 @@ object Json {
         Traverse[List]
           .traverse(a)(jsonSerializer(schemaModule)(element)(productId, sumId)(pe)(prims, M))
           .map(_.mkString("[", ",", "]"))
-    case schemaModule.Schema.Union(terms) =>
+    case s @ schemaModule.Schema.Union(terms) =>
       a => {
         terms
           .foldLeft(Option.empty[M[E, JSON]])(
@@ -119,7 +119,7 @@ object Json {
               }
           )
           .fold(
-            pe(UnionBranchError())
+            pe(UnionBranchError[A, schemaModule.Schema.Union[A]](a, s))
           )(
             identity
           )
