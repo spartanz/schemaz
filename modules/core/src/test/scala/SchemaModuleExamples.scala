@@ -8,16 +8,10 @@ import scalaz.Scalaz._
 
 object SchemaModuleExamples {
 
-  val jsonModule = new SchemaModule {
-    type Prim[A]       = JsonSchema.Prim[A]
-    type ProductTermId = String
-    type SumTermId     = String
-  }
-
   def tests[T](harness: Harness[T]): T = {
     import harness._
-    import jsonModule._
-    import jsonModule.Schema._
+    import scalaz.schema.Json.module._
+    import scalaz.schema.Json.module.Schema._
 
     section("Manipulating Schemas")(
       test("Building Schemas using the smart constructors") { () =>

@@ -13,7 +13,8 @@ object Main extends TestMain {
 
   def tests[T](harness: Harness[T]): List[(String, T)] =
     List(
-      ("Examples", SchemaModuleExamples.tests(harness))
+      ("Examples", SchemaModuleExamples.tests(harness)),
+      ("JSON", JsonExamples.tests(harness))
     )
 
   def main(args: Array[String]): Unit = {
