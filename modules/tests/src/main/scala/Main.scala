@@ -4,9 +4,10 @@ import testz._
 import testz.runner._
 
 import scala.Console._
-import scala.concurrent.Future
+import scala.concurrent.{ Await, Future }
+import scala.concurrent.duration._
 
-trait TestMain {
+object Main {
 
   def printReport(scope: List[String], out: Result): List[String] =
     "\n" :: (out match {
@@ -27,11 +28,23 @@ trait TestMain {
       )
     )
 
-  def tests[T](harness: Harness[T]): List[(String, T)]
+  def tests[T](harness: Harness[T]): List[(String, T)] =
+    List(
+      ("Schema Examples", SchemaModuleExamples.tests(harness)),
+      ("JSON Examples", JsonExamples.tests(harness)),
+      ("Scalacheck Examples", scalacheck.GenModuleExamples.tests(harness))
+    )
 
   def suites(harness: Harness[PureHarness.Uses[Unit]]): List[() => Future[TestOutput]] =
     tests(harness).map {
       case (name, suite) =>
         () => Future.successful(suite((), List(name)))
     }
+
+  def main(args: Array[String]): Unit = {
+    val result =
+      Await.result(Runner(suites(harness), scala.concurrent.ExecutionContext.global), Duration.Inf)
+
+    if (result.failed) throw new Exception("some tests failed")
+  }
 }

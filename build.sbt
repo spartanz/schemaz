@@ -9,7 +9,7 @@ lazy val root = project
   .aggregate(
     core,
     scalacheck,
-    `test-commons`
+    tests
   )
 
 lazy val core = project
@@ -21,7 +21,6 @@ lazy val core = project
       "com.github.julien-truffaut" %% "monocle-macro" % monocleVersion
     ).map(_.exclude("org.scalaz", "scalaz"))
   )
-  .dependsOn(`test-commons` % "test->test")
 
 lazy val scalacheck = project
   .in(file("modules/scalacheck"))
@@ -31,17 +30,16 @@ lazy val scalacheck = project
       "org.scalacheck" %% "scalacheck" % "1.14.0"
     )
   )
-  .dependsOn(core, `test-commons` % "test->test")
+  .dependsOn(core)
 
-lazy val `test-commons` = project
-  .in(file("modules/test-commons"))
+lazy val tests = project
+  .in(file("modules/tests"))
   .settings(
-    name := "scalaz-test-commons",
+    name := "scalaz-schema-tests",
     libraryDependencies ++= Seq(
-      "com.github.julien-truffaut" %% "monocle-core"  % monocleVersion % "test",
-      "com.github.julien-truffaut" %% "monocle-macro" % monocleVersion % "test",
-      "org.scalaz"                 %% "testz-core"    % testzVersion   % "test",
-      "org.scalaz"                 %% "testz-stdlib"  % testzVersion   % "test",
-      "org.scalaz"                 %% "testz-runner"  % testzVersion   % "test"
+      "org.scalaz" %% "testz-core"   % testzVersion,
+      "org.scalaz" %% "testz-stdlib" % testzVersion,
+      "org.scalaz" %% "testz-runner" % testzVersion
     ).map(_.exclude("org.scalaz", "scalaz"))
   )
+  .dependsOn(core, scalacheck)

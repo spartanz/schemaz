@@ -1,9 +1,12 @@
+package scalaz.schema
+
+package scalacheck
+
 import testz._
 import org.scalacheck.rng.Seed
 import scalaz.Scalaz._
 import scalaz.schema._
 import scalaz.schema.JsonSchema.{ JsonBool, JsonNull, JsonNumber, JsonString }
-import scalaz.schema.scalacheck.GenModule
 import scalaz.~>
 
 object GenModuleExamples {
