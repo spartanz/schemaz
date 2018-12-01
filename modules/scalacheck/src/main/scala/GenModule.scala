@@ -8,6 +8,9 @@ import org.scalacheck.Gen
 
 trait GenModule extends SchemaModule {
 
+  //  TODO : pass realisation as a parameter
+  def realisation: Realisation
+
   trait ToGen[S[_]] {
     def toGen: S ~> Gen
   }
@@ -43,9 +46,9 @@ trait GenModule extends SchemaModule {
 
     schema.fields.foldMap(new (Schema.Field[A, ?] ~> Gen) {
       override def apply[B](fa: Schema.Field[A, B]): Gen[B] = fa match {
-        case Schema.Field.Essential(_, base, _, _) =>
+        case Schema.Field.Essential(_, base, _) =>
           schemaToGen(primToGen)(base)
-        case Schema.Field.NonEssential(_, base, _) =>
+        case Schema.Field.NonEssential(_, base) =>
           Gen.option(schemaToGen(primToGen)(base))
       }
     })
@@ -65,7 +68,7 @@ trait GenModule extends SchemaModule {
     implicit
     primToGen: Prim ~> Gen
   ): Gen[A] =
-    schemaToGen(primToGen)(branch.base).map(branch.prism.reverseGet)
+    schemaToGen(primToGen)(branch.base).map(realisation.makeOptic(__ ? branch).reverseGet)
 
   private def seqGen[A](
     schema: Schema.SeqSchema[A]

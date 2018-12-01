@@ -39,7 +39,8 @@ object Json {
   def jsonSerializer[M[_, _], E, A](
     schemaModule: SchemaModule
   )(
-    schema: schemaModule.Schema[A]
+    schema: schemaModule.Schema[A],
+    realisation: Realisation
   )(
     productId: schemaModule.ProductTermId => module.ProductTermId,
     sumId: schemaModule.SumTermId => module.SumTermId
@@ -49,82 +50,104 @@ object Json {
     implicit
     prims: ToJson[schemaModule.Prim],
     M: Applicative[M[E, ?]]
-  ): A => M[E, JSON] = schema match {
-    case schemaModule.Schema.PrimSchema(prim) => a => M.pure(prims.serializer(prim)(a))
-    case schemaModule.Schema.IsoSchema(base, iso) =>
-      a => jsonSerializer(schemaModule)(base)(productId, sumId)(pe)(prims, M)(iso(a))
-    case schemaModule.Schema.RecordSchema(fields) =>
-      a =>
-        fields
-          .analyze[M[E, IList[JSON]]](
-            new (schemaModule.Schema.Field[A, ?] ~> λ[b => M[E, IList[JSON]]]) {
-              override def apply[B](
-                fa: schemaModule.Schema.Field[A, B]
-              ): M[E, IList[JSON]] =
-                fa match {
-                  case schemaModule.Schema.Field.Essential(id, base, getter, _) =>
-                    jsonSerializer(schemaModule)(base)(productId, sumId)(pe)(prims, M)(
-                      getter.get(a)
-                    ).map(
-                      json => IList(s""""${productId(id)}": $json""")
-                    )
-                  case schemaModule.Schema.Field.NonEssential(id, base, getter) =>
-                    getter
-                      .getOption(a)
-                      .fold(
-                        M.pure(IList.apply[JSON]())
+  ): A => M[E, JSON] = {
+    import schemaModule._
+    schema match {
+      case schemaModule.Schema.PrimSchema(prim) => a => M.pure(prims.serializer(prim)(a))
+      case schemaModule.Schema.IsoSchema(base, iso) =>
+        a => jsonSerializer(schemaModule)(base, realisation)(productId, sumId)(pe)(prims, M)(iso(a))
+      case schemaModule.Schema.RecordSchema(fields) =>
+        a =>
+          fields
+            .analyze[M[E, IList[JSON]]](
+              new (schemaModule.Schema.Field[A, ?] ~> λ[b => M[E, IList[JSON]]]) {
+                override def apply[B](
+                  fa: schemaModule.Schema.Field[A, B]
+                ): M[E, IList[JSON]] =
+                  fa match {
+                    case schemaModule.Schema.Field.Essential(id, base, default) =>
+                      jsonSerializer[M, E, B](schemaModule)(base, realisation)(
+                        productId,
+                        sumId
                       )(
-                        b =>
-                          jsonSerializer(schemaModule)(base)(productId, sumId)(pe)(prims, M)(b).map(
-                            json => IList(s""""${productId(id)}": $json""")
+                        pe
+                      )(prims, M)({
+                        // need the path of the current field here
+                        val temp = realisation.makeOptic[A, B](__ / fa)
+
+                        temp.getOption(a).orElse(default).get
+                      }).map(
+                        json => IList(s""""${productId(id)}": $json""")
+                      )
+                    case schemaModule.Schema.Field.NonEssential(id, base) =>
+                      realisation
+                        .makeOptic(__ / fa)
+                        .getOption(a)
+                        .fold(
+                          M.pure(IList.apply[JSON]())
+                        )(
+                          b =>
+                            jsonSerializer(schemaModule)(base, realisation)(productId, sumId)(pe)(
+                              prims,
+                              M
+                            )(b)
+                              .map(
+                                json => IList(s""""${productId(id)}": $json""")
+                              )
+                        )
+                  }
+              }
+            )(
+              new Monoid[M[E, IList[JSON]]] {
+                override def zero: M[E, IList[JSON]] = M.pure(IList.apply[JSON]())
+
+                override def append(f1: M[E, IList[JSON]], f2: => M[E, IList[JSON]])
+                  : M[E, IList[JSON]] = M.apply2(f1, f2)((x, y) => y |+| x)
+              }
+            )
+            .map(
+              _.toList
+                .mkString("{", ",", "}")
+            )
+
+      case schemaModule.Schema.SeqSchema(element) =>
+        a =>
+          Traverse[List]
+            .traverse(a)(
+              jsonSerializer(schemaModule)(element, realisation)(productId, sumId)(pe)(prims, M)
+            )
+            .map(_.mkString("[", ",", "]"))
+      case s @ schemaModule.Schema.Union(terms) =>
+        a => {
+          terms
+            .foldLeft(Option.empty[M[E, JSON]])(
+              (opt, branch) =>
+                (opt, branch) match {
+                  case (x @ Some(_), _) => x
+                  case (None, b: schemaModule.Schema.Branch[A, t]) =>
+                    realisation
+                      .makeOptic(__ ? b)
+                      .getOption(a)
+                      .map(
+                        value =>
+                          jsonSerializer(schemaModule)(b.base, realisation)(productId, sumId)(pe)(
+                            prims,
+                            M
+                          )(
+                            value
+                          ).map(
+                            json => s"""{"${sumId(branch.id)}":$json}"""
                           )
                       )
                 }
-            }
-          )(
-            new Monoid[M[E, IList[JSON]]] {
-              override def zero: M[E, IList[JSON]] = M.pure(IList.apply[JSON]())
+            )
+            .fold(
+              pe(UnionBranchError[A, schemaModule.Schema.Union[A]](a, s))
+            )(
+              identity
+            )
 
-              override def append(f1: M[E, IList[JSON]], f2: => M[E, IList[JSON]])
-                : M[E, IList[JSON]] = M.apply2(f1, f2)((x, y) => y |+| x)
-            }
-          )
-          .map(
-            _.toList
-              .mkString("{", ",", "}")
-          )
-
-    case schemaModule.Schema.SeqSchema(element) =>
-      a =>
-        Traverse[List]
-          .traverse(a)(jsonSerializer(schemaModule)(element)(productId, sumId)(pe)(prims, M))
-          .map(_.mkString("[", ",", "]"))
-    case s @ schemaModule.Schema.Union(terms) =>
-      a => {
-        terms
-          .foldLeft(Option.empty[M[E, JSON]])(
-            (opt, branch) =>
-              (opt, branch) match {
-                case (x @ Some(_), _) => x
-                case (None, b: schemaModule.Schema.Branch[A, t]) =>
-                  b.prism
-                    .getOption(a)
-                    .map(
-                      value =>
-                        jsonSerializer(schemaModule)(b.base)(productId, sumId)(pe)(prims, M)(value)
-                          .map(
-                            json => s"""{"${sumId(branch.id)}":$json}"""
-                          )
-                    )
-              }
-          )
-          .fold(
-            pe(UnionBranchError[A, schemaModule.Schema.Union[A]](a, s))
-          )(
-            identity
-          )
-
-      }
+        }
+    }
   }
-
 }
