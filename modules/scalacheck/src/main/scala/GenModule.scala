@@ -5,6 +5,7 @@ package schema
 package scalacheck
 
 import org.scalacheck.Gen
+import GenModule._
 
 trait GenModule extends SchemaModule {
 
@@ -23,7 +24,7 @@ trait GenModule extends SchemaModule {
       override def apply[A](schema: Schema[A]): Gen[A] = schema match {
         case prim: Schema.PrimSchema[_]     => primToGen(prim.prim)
         case record: Schema.RecordSchema[_] => recordGen(record)
-        case union: Schema.Union[_]         => unionGen(union)
+        case union: Schema.Union[_, _]      => unionGen(union)
         case seq: Schema.SeqSchema[_]       => seqGen(seq)
         case iso: Schema.IsoSchema[_, _]    => schemaToGen(primToGen)(iso.base).map(iso.iso.get)
       }
@@ -51,12 +52,15 @@ trait GenModule extends SchemaModule {
     })
   }
 
-  private def unionGen[A](schema: Schema.Union[A])(implicit primToGen: Prim ~> Gen): Gen[A] = {
-    val branchGens = schema.terms.map(term => branchGen(term))
-    branchGens.tail.headOption
-      .fold(branchGens.head)(
-        g => Gen.oneOf(branchGens.head, g, branchGens.tail.toList.tail: _*)
-      )
+  private def unionGen[A, AE](
+    schema: Schema.Union[A, AE]
+  )(implicit primToGen: Prim ~> Gen): Gen[A] = {
+    val nt: (Schema.Branch[A, ?] ~> Gen[?]) = new (Schema.Branch[A, ?] ~> Gen[?]) {
+      override def apply[X](branch: Schema.Branch[A, X]): Gen[X] = branchGen(branch)
+    }
+
+    val eGen = FreeChoice.fold(schema.choices)(nt)
+    eGen.map(schema.g)
   }
 
   private def branchGen[A, A0](
@@ -64,8 +68,8 @@ trait GenModule extends SchemaModule {
   )(
     implicit
     primToGen: Prim ~> Gen
-  ): Gen[A] =
-    schemaToGen(primToGen)(branch.base).map(branch.prism.reverseGet)
+  ): Gen[A0] =
+    schemaToGen(primToGen)(branch.base)
 
   private def seqGen[A](
     schema: Schema.SeqSchema[A]
@@ -74,4 +78,16 @@ trait GenModule extends SchemaModule {
     primToGen: Prim ~> Gen
   ): Gen[List[A]] =
     Gen.listOf(schemaToGen(primToGen)(schema.element))
+}
+
+object GenModule {
+  implicit val genThing: Thing[Gen] = new Thing[Gen] {
+
+    def choose[A, B](fa: Gen[A], fb: Gen[B]): Gen[Either[A, B]] =
+      for {
+        b <- Gen.oneOf(true, false)
+        r <- if (b) fa.map(Left(_): Either[A, B]) else fb.map(Right(_): Either[A, B])
+      } yield r
+  }
+
 }

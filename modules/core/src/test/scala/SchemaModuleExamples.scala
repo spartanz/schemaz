@@ -5,6 +5,7 @@ package schema
 import monocle.Iso
 import testz._
 import scalaz.Scalaz._
+import FreeChoice._
 
 object SchemaModuleExamples {
 
@@ -28,8 +29,8 @@ object SchemaModuleExamples {
               ),
               nonEssentialField[Person, Role](
                 "role",
-                union[Role](
-                  branch(
+                union(
+                  branch[Role, User](
                     "user",
                     record[User](
                       essentialField(
@@ -38,21 +39,29 @@ object SchemaModuleExamples {
                         Person.active,
                         None
                       ).map(User.apply)
-                    ),
-                    Person.user
-                  ),
-                  branch(
-                    "admin",
-                    record[Admin](
-                      essentialField(
-                        "rights",
-                        seq(prim(JsonSchema.JsonString)),
-                        Person.rights,
-                        None
-                      ).map(Admin.apply)
-                    ),
-                    Person.admin
-                  )
+                    )
+                  ) ::
+                    End(
+                      branch[Role, Admin](
+                        "admin",
+                        record[Admin](
+                          essentialField(
+                            "rights",
+                            seq(prim(JsonSchema.JsonString)),
+                            Person.rights,
+                            None
+                          ).map(Admin.apply)
+                        )
+                      )
+                    )
+                )(
+                  {
+                    case u: User  => Left(u)
+                    case a: Admin => Right(a)
+                  }, {
+                    case Left(user)   => user
+                    case Right(admin) => admin
+                  }
                 ),
                 Person.role
               )
@@ -77,7 +86,7 @@ object SchemaModuleExamples {
                   Field.NonEssential(
                     "role",
                     Union(
-                      NonEmptyList.nels[Branch[Role, _]](
+                      ChoiceBranch[Branch[Role, ?], User, Admin](
                         Branch[Role, User](
                           "user",
                           RecordSchema[User](
@@ -91,26 +100,36 @@ object SchemaModuleExamples {
                                 )
                               )
                               .map(User)
-                          ),
-                          Person.user
+                          )
                         ),
-                        Branch[Role, Admin](
-                          "admin",
-                          RecordSchema[Admin](
-                            FreeAp
-                              .lift[Field[Admin, ?], List[String]](
-                                Field.Essential(
-                                  "rights",
-                                  SeqSchema(PrimSchema(JsonSchema.JsonString)),
-                                  Person.rights,
-                                  None
+                        End[Branch[Role, ?], Admin](
+                          Branch[Role, Admin](
+                            "admin",
+                            RecordSchema[Admin](
+                              FreeAp
+                                .lift[Field[Admin, ?], List[String]](
+                                  Field.Essential(
+                                    "rights",
+                                    SeqSchema(PrimSchema(JsonSchema.JsonString)),
+                                    Person.rights,
+                                    None
+                                  )
                                 )
-                              )
-                              .map(Admin)
-                          ),
-                          Person.admin
+                                .map(Admin)
+                            )
+                          )
                         )
-                      )
+                      ),
+                      (r: Role) =>
+                        r match {
+                          case u: User  => Left(u)
+                          case a: Admin => Right(a)
+                        },
+                      (e: Either[User, Admin]) =>
+                        e match {
+                          case Left(u)  => u
+                          case Right(a) => a
+                        }
                     ),
                     Person.role
                   )
