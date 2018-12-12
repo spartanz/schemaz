@@ -54,11 +54,11 @@ object JsonExamples {
                   )
               )(
                 {
-                  case u: User  => Left(u)
-                  case a: Admin => Right(a)
+                  case u: User  => -\/(u)
+                  case a: Admin => \/-(a)
                 }, {
-                  case Left(user)   => user
-                  case Right(admin) => admin
+                  case -\/(user)  => user
+                  case \/-(admin) => admin
                 }
               ),
               Person.role

@@ -4,6 +4,7 @@ package schema
 
 import scalaz.Scalaz._
 import scalaz.schema.JsonSchema._
+import FreeChoice._
 
 object Json {
   type JSON = String
@@ -101,7 +102,9 @@ object Json {
           }
 
         val fun =
-          FreeChoice.fold[schemaModule.Schema.Branch[A, ?], ? => JSON, ae](union.choices)(nt)
+          FreeChoice.contravariantFold[schemaModule.Schema.Branch[A, ?], ? => JSON, ae](
+            union.choices
+          )(nt)
         fun(union.f(a))
       }
   }

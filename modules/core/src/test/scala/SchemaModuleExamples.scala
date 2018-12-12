@@ -56,11 +56,11 @@ object SchemaModuleExamples {
                     )
                 )(
                   {
-                    case u: User  => Left(u)
-                    case a: Admin => Right(a)
+                    case u: User  => -\/(u)
+                    case a: Admin => \/-(a)
                   }, {
-                    case Left(user)   => user
-                    case Right(admin) => admin
+                    case -\/(user)  => user
+                    case \/-(admin) => admin
                   }
                 ),
                 Person.role
@@ -122,13 +122,13 @@ object SchemaModuleExamples {
                       ),
                       (r: Role) =>
                         r match {
-                          case u: User  => Left(u)
-                          case a: Admin => Right(a)
+                          case u: User  => -\/(u)
+                          case a: Admin => \/-(a)
                         },
-                      (e: Either[User, Admin]) =>
+                      (e: User \/ Admin) =>
                         e match {
-                          case Left(u)  => u
-                          case Right(a) => a
+                          case -\/(u) => u
+                          case \/-(a) => a
                         }
                     ),
                     Person.role

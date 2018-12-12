@@ -81,13 +81,13 @@ trait GenModule extends SchemaModule {
 }
 
 object GenModule {
-  implicit val genThing: Thing[Gen] = new Thing[Gen] {
+  implicit val genThing: Alt[Gen] = new Alt[Gen] {
 
-    def choose[A, B](fa: Gen[A], fb: Gen[B]): Gen[Either[A, B]] =
-      for {
-        b <- Gen.oneOf(true, false)
-        r <- if (b) fa.map(Left(_): Either[A, B]) else fb.map(Right(_): Either[A, B])
-      } yield r
+    def alt[A](fa:Gen[A],fb:Gen[A]):Gen[A] = for {
+      a <- fa
+      b <- fb
+      x <- Gen.oneOf(a,b)
+    } yield x
   }
 
 }
