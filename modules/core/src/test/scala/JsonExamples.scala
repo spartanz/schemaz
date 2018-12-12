@@ -2,7 +2,6 @@ package scalaz
 
 package schema
 
-import scalaz.Scalaz._
 import testz._
 
 object JsonExamples {
@@ -17,53 +16,59 @@ object JsonExamples {
 
     section("JSON Schema Tests")(
       test("Case Class should Serialize using Schema") { () =>
-        val schema = record[Person](
-          ^(
-            essentialField[Person, String](
-              "name",
-              prim(JsonSchema.JsonString),
-              Person.name,
-              None
-            ),
-            nonEssentialField[Person, Role](
-              "role",
-              union(
-                branch[Role, User](
-                  "user",
-                  record[User](
-                    essentialField(
-                      "active",
-                      prim(JsonSchema.JsonBool),
-                      Person.active,
-                      None
-                    ).map(User.apply)
-                  )
-                ) ::
-                  End(
-                    branch[Role, Admin](
-                      "admin",
-                      record[Admin](
-                        essentialField(
-                          "rights",
-                          seq(prim(JsonSchema.JsonString)),
-                          Person.rights,
-                          None
-                        ).map(Admin.apply)
+        val schema = record(
+          essentialField[Person, String](
+            "name",
+            prim(JsonSchema.JsonString)
+          ) ::
+            FPure(
+              nonEssentialField[Person, Role](
+                "role",
+                union(
+                  branch[Role, User](
+                    "user",
+                    record(
+                      FPure(
+                        essentialField[User, Boolean](
+                          "active",
+                          prim(JsonSchema.JsonBool)
+                        )
+                      )
+                    )(
+                      u => u.active,
+                      active => User(active)
+                    )
+                  ) ::
+                    End(
+                      branch[Role, Admin](
+                        "admin",
+                        record(
+                          FPure(
+                            essentialField[Admin, List[String]](
+                              "rights",
+                              seq(prim(JsonSchema.JsonString))
+                            )
+                          )
+                        )(
+                          admin => admin.rights,
+                          rights => Admin(rights)
+                        )
                       )
                     )
-                  )
-              )(
-                {
-                  case u: User  => -\/(u)
-                  case a: Admin => \/-(a)
-                }, {
-                  case -\/(user)  => user
-                  case \/-(admin) => admin
-                }
-              ),
-              Person.role
+                )(
+                  {
+                    case u: User  => -\/(u)
+                    case a: Admin => \/-(a)
+                  }, {
+                    case -\/(user)  => user
+                    case \/-(admin) => admin
+                  }
+                )
+              )
             )
-          )(Person.apply)
+        )(
+          p => (p.name, p.role),
+          { case (name, role) => Person(name, role) }
         )
 
         type PersonTuple = (Seq[Char], Option[Role])
