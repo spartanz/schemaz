@@ -6,6 +6,20 @@ sealed trait FreeChoice[F[_], A]
 
 object FreeChoice {
 
+  type T[A] = HFix[FreeChoice, A]
+
+  implicit val freeChoiceHFunctor: HFunctor[FreeChoice] = new HFunctor[FreeChoice] {
+
+    def hfmap[M[_], N[_]](nt: M ~> N): FreeChoice[M, ?] ~> FreeChoice[N, ?] =
+      new (FreeChoice[M, ?] ~> FreeChoice[N, ?]) {
+
+        def apply[A](fcma: FreeChoice[M, A]): FreeChoice[N, A] = fcma match {
+          case End(fa)                    => End(nt(fa))
+          case c: ChoiceBranch[M, at, bt] => ChoiceBranch(nt(c.fa), apply(c.tail))
+        }
+      }
+  }
+
   def covariantFold[F[_], G[_]: Alt, A](choice: FreeChoice[F, A])(nt: F ~> G): G[A] = choice match {
     case e: End[F, at] => nt(e.fa)
     //in this case A has to be Either[at, bt]
