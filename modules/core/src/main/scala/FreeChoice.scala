@@ -5,7 +5,7 @@ package schema
 sealed trait FreeChoice[F[_], A]
 
 object FreeChoice {
-
+  /*
   type T[A] = HFix[FreeChoice, A]
 
   implicit val freeChoiceHFunctor: HFunctor[FreeChoice] = new HFunctor[FreeChoice] {
@@ -18,7 +18,7 @@ object FreeChoice {
           case c: ChoiceBranch[M, at, bt] => ChoiceBranch(nt(c.fa), apply(c.tail))
         }
       }
-  }
+  }*/
 
   def covariantFold[F[_], G[_]: Alt, A](choice: FreeChoice[F, A])(nt: F ~> G): G[A] = choice match {
     case e: End[F, at] => nt(e.fa)

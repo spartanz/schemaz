@@ -55,7 +55,75 @@ trait SchemaModule {
     choices: FreeChoice[Schema.Term[SumTermId, A, ?], AE]
   )(f: A => AE, g: AE => A): Schema.Union[A, AE] = Schema.Union(choices, f, g)
 
+  def optional[A, L <: Schema[A]](aSchema: L): Schema[Option[A]] =
+    iso(
+      Schema.:+:[A, L, Unit](aSchema, Schema.Zero()),
+      Iso[Either[A, Unit], Option[A]] {
+        case Left(a)  => Some(a)
+        case Right(_) => None
+      } {
+        case Some(a) => Left(a)
+        case None    => Right(())
+      }
+    )
+
+  def product[A, An, R](terms: Schema.Product.Aux[An, R], representation: Iso[An, A])(
+    implicit proof: Schema.LabelledProduct.Aux[R, An]
+  ): Schema[A] =
+    iso(terms, representation)
+
   object Schema {
+
+    trait LabelledProduct[T] {
+      type Out
+    }
+
+    object LabelledProduct {
+      type Aux[A, O] = LabelledProduct[A] { type Out = O }
+    }
+
+    implicit def labelledProduct[A, B, R <: Schema[B]](
+      implicit proof: LabelledProduct.Aux[R, B]
+    ): LabelledProduct.Aux[:*:[A, ProductTerm, B, R], (A, proof.Out)] =
+      new LabelledProduct[:*:[A, ProductTerm, B, R]] { type Out = (A, B) }
+
+    implicit def labelledLast[A]
+      : LabelledProduct.Aux[:*:[A, ProductTerm, Unit, One.type], (A, Unit)] =
+      new LabelledProduct[:*:[A, ProductTerm, Unit, One.type]] {
+        type Out = (A, Unit)
+      }
+
+    sealed trait Sum[A]                                            extends Schema[A]
+    sealed case class SumTerm[A](id: SumTermId, schema: Schema[A]) extends Schema[A]
+    sealed trait Product[A] extends Schema[A] {
+      type Repr
+    }
+
+    object Product {
+      type Aux[A, R] = Product[A] { type Repr = R }
+    }
+
+    sealed case class ProductTerm[A](id: ProductTermId, schema: Schema[A]) extends Schema[A]
+
+    sealed case class :+:[A0, L <: Schema[A0], B](head: L, tail: Sum[B]) extends Sum[Either[A0, B]]
+    sealed case class Zero()                                             extends Sum[Unit]
+
+    sealed case class :*:[A0, L[_] <: Schema[_], B, R <: Schema[B]](
+      left: L[A0],
+      tail: Product.Aux[B, R]
+    ) extends Product[(A0, B)] {
+      type Repr = :*:[A0, L, B, R]
+    }
+
+    object One extends Product[Unit] {
+      type Repr = this.type
+
+      def :*: [A, R[_] <: Schema[_]](
+        other: R[A]
+      ): Product.Aux[(A, Unit), :*:[A, R, Unit, One.type]] =
+        new :*:[A, R, Unit, One.type](other, this)
+    }
+
     // Writing final here triggers a warning, using sealed instead achieves almost the same effect
     // without warning. See https://issues.scala-lang.org/browse/SI-4440
     sealed case class OptionalSchema[A](base: Schema[A]) extends Schema[Option[A]]
