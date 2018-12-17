@@ -55,73 +55,65 @@ trait SchemaModule {
     choices: FreeChoice[Schema.Term[SumTermId, A, ?], AE]
   )(f: A => AE, g: AE => A): Schema.Union[A, AE] = Schema.Union(choices, f, g)
 
-  def optional[A, L <: Schema[A]](aSchema: L): Schema[Option[A]] =
+  def optional[A, L[_] <: Schema[_]](aSchema: L[A]): Schema[Option[A]] =
     iso(
-      Schema.:+:[A, L, Unit](aSchema, Schema.Zero()),
-      Iso[Either[A, Unit], Option[A]] {
-        case Left(a)  => Some(a)
-        case Right(_) => None
-      } {
-        case Some(a) => Left(a)
-        case None    => Right(())
-      }
+      new Schema.:+:[A, L, Unit, Schema](aSchema, Schema.Zero),
+      Iso[A \/ Unit, Option[A]](_.swap.toOption)(_.fold[A \/ Unit](\/-(()))(-\/(_)))
     )
 
-  def product[A, An, R](terms: Schema.Product.Aux[An, R], representation: Iso[An, A])(
-    implicit proof: Schema.LabelledProduct.Aux[R, An]
+  def product[A, An, R <: Schema[An]](terms: R, representation: Iso[An, A])(
+    implicit proof: Schema.LabelledProduct[R]
   ): Schema[A] =
-    iso(terms, representation)
+    iso[An, A](terms, representation)
 
   object Schema {
 
-    trait LabelledProduct[T] {
-      type Out
-    }
+    type HIso[F[_], A, B] = Iso[F[A], F[B]]
 
-    object LabelledProduct {
-      type Aux[A, O] = LabelledProduct[A] { type Out = O }
-    }
 
-    implicit def labelledProduct[A, B, R <: Schema[B]](
-      implicit proof: LabelledProduct.Aux[R, B]
-    ): LabelledProduct.Aux[:*:[A, ProductTerm, B, R], (A, proof.Out)] =
-      new LabelledProduct[:*:[A, ProductTerm, B, R]] { type Out = (A, B) }
 
-    implicit def labelledLast[A]
-      : LabelledProduct.Aux[:*:[A, ProductTerm, Unit, One.type], (A, Unit)] =
-      new LabelledProduct[:*:[A, ProductTerm, Unit, One.type]] {
-        type Out = (A, Unit)
-      }
+    trait LabelledProduct[T]
 
-    sealed trait Sum[A]                                            extends Schema[A]
+    implicit def labelledProduct[A, B, R[_] <: Schema[_]](
+      implicit proof: LabelledProduct[R[B]]
+    ): LabelledProduct[:*:[A, ProductTerm, B, R]] =
+      new LabelledProduct[:*:[A, ProductTerm, B, R]] {}
+
+    implicit def singleLabelledProduct[A]: LabelledProduct[ProductTerm[A]] =
+      new LabelledProduct[ProductTerm[A]] {}
+
     sealed case class SumTerm[A](id: SumTermId, schema: Schema[A]) extends Schema[A]
-    sealed trait Product[A] extends Schema[A] {
-      type Repr
-    }
-
-    object Product {
-      type Aux[A, R] = Product[A] { type Repr = R }
-    }
 
     sealed case class ProductTerm[A](id: ProductTermId, schema: Schema[A]) extends Schema[A]
 
-    sealed case class :+:[A0, L <: Schema[A0], B](head: L, tail: Sum[B]) extends Sum[Either[A0, B]]
-    sealed case class Zero()                                             extends Sum[Unit]
-
-    sealed case class :*:[A0, L[_] <: Schema[_], B, R <: Schema[B]](
-      left: L[A0],
-      tail: Product.Aux[B, R]
-    ) extends Product[(A0, B)] {
-      type Repr = :*:[A0, L, B, R]
+    sealed class :+:[A, L[_] <: Schema[_], B, R[_] <: Schema[_]](l: L[A], r: => R[B])
+        extends Schema[A \/ B] {
+      lazy val left: L[A]  = l
+      lazy val right: R[B] = r
     }
 
-    object One extends Product[Unit] {
-      type Repr = this.type
+    object :*: {
 
-      def :*: [A, R[_] <: Schema[_]](
-        other: R[A]
-      ): Product.Aux[(A, Unit), :*:[A, R, Unit, One.type]] =
-        new :*:[A, R, Unit, One.type](other, this)
+      def unapply[A, L[_] <: Schema[_], B, R[_] <: Schema[_]](
+        prod: :*:[A, L, B, R]
+      ): Option[(L[A], R[B])] = Some((prod.left, prod.right))
+    }
+
+    case object Zero extends Schema[Unit]
+
+    sealed class :*:[A, L[_] <: Schema[_], B, R[_] <: Schema[_]](
+      l: => L[A],
+      r: => R[B]
+    ) extends Schema[(A, B)] {
+      lazy val left: L[A]  = l
+      lazy val right: R[B] = r
+    }
+
+    object One extends Schema[Unit]
+
+    implicit class SchemaExtensions[A, R[_] <: Schema[_]](schema: R[A]) {
+      def :*: [B, L[_] <: Schema[_]](left: L[B]): :*:[B, L, A, R] = new :*:(left, schema)
+      def :+: [B, L[_] <: Schema[_]](left: L[B]): :+:[B, L, A, R] = new :+:(left, schema)
     }
 
     // Writing final here triggers a warning, using sealed instead achieves almost the same effect
@@ -150,6 +142,47 @@ trait SchemaModule {
      */
     sealed case class Term[ID, A, A0](id: ID, base: Schema[A0])
 
+    def covariantFold[F[_]](prims: Prim ~> F)(implicit F: Alt[F]): Schema ~> F =
+      new (Schema ~> F) {
+
+        def apply[A](schema: Schema[A]): F[A] = schema match {
+          case t: PrimSchema[a] => prims(t.prim)
+          case p: :*:[a, l, b, r] =>
+            F.tuple2[a, b](
+              apply(p.left.asInstanceOf[Schema[a]]),
+              apply(p.right.asInstanceOf[Schema[b]])
+            )
+          case s: :+:[a, l, b, r] =>
+            F.either2(
+              apply(s.left.asInstanceOf[Schema[a]]),
+              apply(s.right.asInstanceOf[Schema[b]])
+            )
+          case i: IsoSchema[a0, a] =>
+            F.map(apply(i.base))(i.iso.get)
+          case ProductTerm(id, base) => apply(base)
+        }
+      }
+
+    def contravariantFold[F[_]](prims: Prim ~> F)(implicit F: Decidable[F]): Schema ~> F =
+      new (Schema ~> F) {
+
+        def apply[A](schema: Schema[A]): F[A] = schema match {
+          case t: PrimSchema[a] => prims(t.prim)
+          case p: :*:[a, l, b, r] =>
+            F.divide2(
+              apply(p.left.asInstanceOf[Schema[a]]),
+              apply(p.right.asInstanceOf[Schema[b]])
+            )(identity)
+          case s: :+:[a, l, b, r] =>
+            F.choose2(
+              apply(s.left.asInstanceOf[Schema[a]]),
+              apply(s.right.asInstanceOf[Schema[b]])
+            )(identity)
+          case i: IsoSchema[a0, a] =>
+            F.contramap(apply(i.base))(i.iso.apply)
+          case ProductTerm(id, base) => apply(base)
+        }
+      }
   }
 
 }

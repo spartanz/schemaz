@@ -1,0 +1,39 @@
+import scalaz._, Scalaz._,  schema._, FreeChoice._
+object module extends SchemaModule {
+  type Prim[A] = JsonSchema.Prim[A]
+  type SumTermId = Int
+  type ProductTermId = String
+}
+import module._, Schema._
+import JsonSchema._
+
+val p = ProductTerm("foo", PrimSchema(JsonNumber)) :*: ProductTerm("bar", PrimSchema(JsonString))
+import monocle._
+case class Foo(foo: BigDecimal, bar: String)
+val repr = Iso[(BigDecimal, String), Foo]((Foo.apply _).tupled)( f => (f.foo, f.bar))
+
+val schema = product(p, repr)
+import org.scalacheck._, Arbitrary._
+import scalacheck._, GenModule._
+
+val primToGenNT = new (Prim ~> Gen) {
+override def apply[A](prim: JsonSchema.Prim[A]): Gen[A] = prim match {
+case JsonString => arbitrary[String]
+case JsonNumber => arbitrary[BigDecimal]
+case JsonBool   => arbitrary[Boolean]
+case JsonNull   => arbitrary[Null]
+}
+}
+val makeGen = covariantFold[Gen](primToGenNT)
+val gen = makeGen(schema)
+
+type Encoder[A] = A => String
+
+val primToEncoder =  new (module.Prim ~> Encoder) {
+      override def apply[A](fa: module.Prim[A]): Encoder[A] = fa match {
+        case JsonString => a => s""""$a""""
+        case JsonBool   => a => if (a) "true" else "false"
+        case JsonNull   => _ => "null"
+        case JsonNumber => a => a.shows
+      }
+    }
