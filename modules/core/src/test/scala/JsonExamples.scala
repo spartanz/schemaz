@@ -10,47 +10,55 @@ object JsonExamples {
   def tests[T](harness: Harness[T]): T = {
     import harness._
     import scalaz.schema.Json._, module._
+    import JsonSchema.{ Prim => _, _ }
 
     def matchJsonStrings(a: String, b: String): Boolean =
       a.toLowerCase.replaceAll("\\s+", "") == b.toLowerCase.replaceAll("\\s+", "")
 
     section("JSON Schema Tests")(
       test("Case Class should Serialize using Schema") { () =>
-        val roleSchema = union(
-          "user" -+>: record(
-            "active" -*>: prim(JsonSchema.JsonBool),
-            Iso[Boolean, User](User.apply)(_.active)
-          ) :+:
-            "admin" -+>: record(
-            "rights" -*>: seq(prim(JsonSchema.JsonString)),
-            Iso[List[String], Admin](Admin.apply)(_.rights)
-          ),
-          Iso[Either[User, Admin], Role] {
-            case Left(u)  => u
-            case Right(a) => a
-          } {
-            case u @ User(_)  => Left(u)
-            case a @ Admin(_) => Right(a)
-          }
-        )
-
         val schema = record(
           "name" -*>: prim(JsonSchema.JsonString) :*:
-            "role" -*>: optional(roleSchema),
+            "role" -*>: optional(
+            union(
+              "user" -+>: record(
+                "active" -*>: prim(JsonSchema.JsonBool),
+                Iso[Boolean, User](User.apply)(_.active)
+              ) :+:
+                "admin" -+>: record(
+                "rights" -*>: seq(prim(JsonSchema.JsonString)),
+                Iso[List[String], Admin](Admin.apply)(_.rights)
+              ),
+              Iso[User \/ Admin, Role] {
+                case -\/(u) => u
+                case \/-(a) => a
+              } {
+                case u @ User(_)  => -\/(u)
+                case a @ Admin(_) => \/-(a)
+              }
+            )
+          ),
           Iso[(String, Option[Role]), Person]((Person.apply _).tupled)(p => (p.name, p.role))
         )
+
+        val mkSerializer = Schema
+          .contravariantFold(representation(new (Prim ~> Encoder) {
+            def apply[A](fa: Prim[A]): Encoder[A] = { a =>
+              fa match {
+                case JsonNumber => a.toString
+                case JsonBool   => a.toString
+                case JsonString => s""""$a""""
+                case JsonNull   => "null"
+              }
+            }
+          }))
+
+        val serializer = mkSerializer(schema)
 
         type PersonTuple = (Seq[Char], Option[Role])
         val personTupleSchema = iso[Person, PersonTuple](schema, Person.personToTupleIso)
 
-        val serializer: Person => JSON =
-          jsonSerializer(module)(schema)(identity, identity)
-
-        val isoSerializer: PersonTuple => JSON =
-          jsonSerializer(module)(personTupleSchema)(
-            identity,
-            identity
-          )
+        val isoSerializer = mkSerializer(personTupleSchema)
 
         val testCases: List[(Person, String)] = List(
           Person(null, None)                                          -> """{"name":null}""",

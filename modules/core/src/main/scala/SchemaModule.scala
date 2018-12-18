@@ -22,7 +22,7 @@ trait SchemaModule {
 
   def union[A, AE, R <: Schema[AE]](choices: R, iso: Iso[AE, A])(
     implicit @deprecated("don't warn", "") proof: Schema.LabelledSum[R]
-  ): Schema.Union[A, AE] = Schema.Union(choices, iso)
+  ): Schema[A] = Schema.Union(choices, iso)
 
   def optional[A, L[_] <: Schema[_]](aSchema: L[A]): Schema[Option[A]] =
     iso(

@@ -5,7 +5,7 @@ package schema
 import monocle.Iso
 import testz._
 //import FreeChoice._ necessary for commented test
-
+/*
 object SchemaModuleExamples {
 
   def tests[T](harness: Harness[T]): T = {
@@ -129,6 +129,8 @@ object SchemaModuleExamples {
 
         assert(personTupleSchema == expected)
       },*/
+
+      /*
       test("imap on IsoSchema shouldn't add new layer") { () =>
         val adminToListIso  = Iso[Admin, List[String]](_.rights)(Admin.apply)
         def listToSeqIso[A] = Iso[List[A], Seq[A]](_.toSeq)(_.toList)
@@ -150,6 +152,8 @@ object SchemaModuleExamples {
           case _                  => assert(false)
         }
       }
+ */
     )
   }
 }
+ */
