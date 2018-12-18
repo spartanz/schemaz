@@ -46,9 +46,12 @@ object FreeChoice {
     override def conquer[A]: A => X = _ => Monoid[X].zero
 
     override def divide[A, B, C](fa: A => X, fb: B => X)(f: C => (A, B)): C => X = c => {
+      println(s"$fa , $fb")
       val tpl = f(c)
       Monoid[X].append(fa(tpl._1), fb(tpl._2))
     }
+
+    override def contramap[A, B](fa: A => X)(f: B => A): B => X = fa.compose(f)
   }
 }
 

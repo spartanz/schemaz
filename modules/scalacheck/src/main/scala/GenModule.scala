@@ -4,11 +4,27 @@ package schema
 
 package scalacheck
 
-import org.scalacheck.Gen
+import org.scalacheck._, Arbitrary._
 
 import GenModule._
 
 trait GenModule extends SchemaModule {
+
+  def representation(primNt: Prim ~> Gen) = new Schema.Representation[Gen] {
+    val prims = primNt
+
+    def handleList[A] = (gen => Gen.listOf[A](gen))
+
+    val handleRecord = NaturalTransformation.refl[Gen]
+
+    val handleUnion = NaturalTransformation.refl[Gen]
+
+    def labelBranch(label: SumTermId) = NaturalTransformation.refl[Gen]
+
+    def labelField(label: ProductTermId) = NaturalTransformation.refl[Gen]
+
+    def zero: Gen[Unit] = Gen.const(())
+  }
 
   trait ToGen[S[_]] {
     def toGen: S ~> Gen
@@ -17,46 +33,9 @@ trait GenModule extends SchemaModule {
   implicit class ToGenOps[A](schema: Schema[A]) {
 
     def toGen(implicit primToGen: Prim ~> Gen): Gen[A] =
-      schemaToGen(primToGen)(schema)
+      Schema.covariantFold(representation(primToGen)).apply(schema)
   }
 
-  private def schemaToGen(implicit primToGen: Prim ~> Gen): Schema ~> Gen =
-    new (Schema ~> Gen) {
-      override def apply[A](schema: Schema[A]): Gen[A] = schema match {
-        case prim: Schema.PrimSchema[_]        => primToGen(prim.prim)
-        case record: Schema.RecordSchema[_, _] => recordGen(record)
-        case union: Schema.Union[_, _]         => unionGen(union)
-        case seq: Schema.SeqSchema[_]          => seqGen(seq)
-        case iso: Schema.IsoSchema[_, _]       => schemaToGen(primToGen)(iso.base).map(iso.iso.get)
-        case opt: Schema.OptionalSchema[_]     => Gen.option(schemaToGen(primToGen)(opt.base))
-      }
-    }
-
-  def nt[ID, A](implicit primToGen: Prim ~> Gen): (Schema.Term[ID, A, ?] ~> Gen[?]) =
-    new (Schema.Term[ID, A, ?] ~> Gen[?]) {
-      override def apply[X](branch: Schema.Term[ID, A, X]): Gen[X] =
-        schemaToGen(primToGen)(branch.base)
-    }
-
-  private def recordGen[A, AP](
-    schema: Schema.RecordSchema[A, AP]
-  )(
-    implicit
-    primToGen: Prim ~> Gen
-  ): Gen[A] = FreeAp2.covariantFold(schema.fields)(nt[ProductTermId, A]).map(schema.g)
-
-  private def unionGen[A, AE](
-    schema: Schema.Union[A, AE]
-  )(implicit primToGen: Prim ~> Gen): Gen[A] =
-    FreeChoice.covariantFold(schema.choices)(nt[SumTermId, A]).map(schema.g)
-
-  private def seqGen[A](
-    schema: Schema.SeqSchema[A]
-  )(
-    implicit
-    primToGen: Prim ~> Gen
-  ): Gen[List[A]] =
-    Gen.listOf(schemaToGen(primToGen)(schema.element))
 }
 
 object GenModule {
