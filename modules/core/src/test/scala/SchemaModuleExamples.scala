@@ -2,8 +2,9 @@ package scalaz
 
 package schema
 
-import monocle.Iso
-import testz._
+trait Fool
+//import monocle.Iso
+//import testz._
 //import FreeChoice._ necessary for commented test
 /*
 object SchemaModuleExamples {

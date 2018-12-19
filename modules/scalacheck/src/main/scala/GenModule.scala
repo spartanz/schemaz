@@ -4,7 +4,7 @@ package schema
 
 package scalacheck
 
-import org.scalacheck._, Arbitrary._
+import org.scalacheck._
 
 import GenModule._
 
@@ -23,11 +23,7 @@ trait GenModule extends SchemaModule {
 
     def labelField(label: ProductTermId) = NaturalTransformation.refl[Gen]
 
-    def zero: Gen[Unit] = Gen.const(())
-  }
-
-  trait ToGen[S[_]] {
-    def toGen: S ~> Gen
+    def unit: Gen[Unit] = Gen.const(())
   }
 
   implicit class ToGenOps[A](schema: Schema[A]) {
@@ -45,18 +41,14 @@ object GenModule {
       fa.flatMap(a => f.map(_(a)))
     override def point[T](a: => T): Gen[T] = Gen.const(a)
   }
-
+  fb.flatMap(b => f.map(_(b)))(map(fa)(f.curried))
   implicit val genAlt: Alt[Gen] = new Alt[Gen] {
     override def point[A](a: => A): org.scalacheck.Gen[A] = Gen.const(a)
     override def ap[A, B](fa: => org.scalacheck.Gen[A])(
       f: => org.scalacheck.Gen[A => B]
-    ): org.scalacheck.Gen[B] = genAp.ap(fa)(f)
-    override def alt[X](fa: => Gen[X], fb: => Gen[X]): Gen[X] =
-      for {
-        a <- fa
-        b <- fb
-        x <- Gen.oneOf(a, b)
-      } yield x
+    ): org.scalacheck.Gen[B]                                  = genAp.ap(fa)(f)
+    override def alt[X](fa: => Gen[X], fb: => Gen[X]): Gen[X] = Gen.oneOf(fa, fb)
+
   }
 
 }

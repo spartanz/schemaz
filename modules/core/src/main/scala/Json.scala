@@ -2,7 +2,6 @@ package scalaz
 
 package schema
 
-import scalaz.Scalaz._
 import scalaz.schema.JsonSchema._
 import FreeChoice._
 
@@ -44,7 +43,7 @@ object Json {
 
     }
 
-    def zero: Encoder[Unit] = (_ => "null")
+    def unit: Encoder[Unit] = (_ => "null")
 
   }
 

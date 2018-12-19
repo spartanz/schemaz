@@ -12,7 +12,7 @@ import monocle._
 case class Foo(foo: BigDecimal, bar: Option[String])
 val repr = Iso[(BigDecimal, Option[String]), Foo]((Foo.apply _).tupled)( f => (f.foo, f.bar))
 
-val schema = product(p, repr)
+val schema = record(p, repr)
 import org.scalacheck._, Arbitrary._
 import scalacheck._, GenModule._
 

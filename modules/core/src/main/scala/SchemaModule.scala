@@ -2,7 +2,6 @@ package scalaz
 
 package schema
 
-import std.list.listInstance
 import monocle.Iso
 
 trait SchemaModule {
@@ -22,11 +21,11 @@ trait SchemaModule {
 
   def union[A, AE, R <: Schema[AE]](choices: R, iso: Iso[AE, A])(
     implicit @deprecated("don't warn", "") proof: Schema.LabelledSum[R]
-  ): Schema[A] = Schema.Union(choices, iso)
+  ): Schema[A] = Schema.Union[A, AE](choices, iso)
 
-  def optional[A, L[_] <: Schema[_]](aSchema: L[A]): Schema[Option[A]] =
+  def optional[A, L[X] <: Schema[X]](aSchema: L[A]): Schema[Option[A]] =
     iso(
-      new Schema.:+:[A, L, Unit, Schema](aSchema, Schema.Zero),
+      new Schema.:+:[A, L, Unit, Schema](aSchema, Schema.One),
       Iso[A \/ Unit, Option[A]](_.swap.toOption)(_.fold[A \/ Unit](\/-(()))(-\/(_)))
     )
 
@@ -52,7 +51,7 @@ trait SchemaModule {
 
     trait LabelledSum[T]
 
-    implicit def labelledSum[A, B, R[_] <: Schema[_]](
+    implicit def labelledSum[A, B, R[X] <: Schema[X]](
       implicit @deprecated("don't warn", "") proof: LabelledSum[R[B]]
     ): LabelledSum[:+:[A, SumTerm, B, R]] =
       new LabelledSum[:+:[A, SumTerm, B, R]] {}
@@ -64,22 +63,13 @@ trait SchemaModule {
 
     sealed case class ProductTerm[A](id: ProductTermId, schema: Schema[A]) extends Schema[A]
 
-    sealed class :+:[A, L[_] <: Schema[_], B, R[_] <: Schema[_]](l: => L[A], r: => R[B])
+    sealed class :+:[A, L[X] <: Schema[X], B, R[Y] <: Schema[Y]](l: => L[A], r: => R[B])
         extends Schema[A \/ B] {
       lazy val left: L[A]  = l
       lazy val right: R[B] = r
 
       override def toString: String = s"$left :+: $right"
     }
-
-    object :*: {
-
-      def unapply[A, L[_] <: Schema[_], B, R[_] <: Schema[_]](
-        prod: :*:[A, L, B, R]
-      ): Option[(L[A], R[B])] = Some((prod.left, prod.right))
-    }
-
-    case object Zero extends Schema[Unit]
 
     sealed class :*:[A, L[_] <: Schema[_], B, R[_] <: Schema[_]](
       l: => L[A],
@@ -96,7 +86,7 @@ trait SchemaModule {
     // Writing final here triggers a warning, using sealed instead achieves almost the same effect
     // without warning. See https://issues.scala-lang.org/browse/SI-4440
     sealed case class PrimSchema[A](prim: Prim[A]) extends Schema[A]
-    sealed case class Union[A, AE](
+    sealed case class Union[A, AE] private (
       choices: Schema[AE],
       iso: Iso[AE, A]
     ) extends Schema[A]
@@ -110,11 +100,11 @@ trait SchemaModule {
         IsoSchema(base, iso.composeIso(_iso))
     }
 
-    implicit class SchemaExtensions[A, R[_] <: Schema[_]](schema: R[A]) {
+    implicit class SchemaExtensions[A, R[X] <: Schema[X]](schema: R[A]) {
       def :*: [B, L[_] <: Schema[_]](left: L[B]): :*:[B, L, A, R] = new :*:(left, schema)
-      def :+: [B, L[_] <: Schema[_]](left: L[B]): :+:[B, L, A, R] = new :+:(left, schema)
-      def -*>: (id: ProductTermId): ProductTerm[A]                = ProductTerm(id, schema.asInstanceOf[Schema[A]])
-      def -+>: (id: SumTermId): SumTerm[A]                        = SumTerm(id, schema.asInstanceOf[Schema[A]])
+      def :+: [B, L[Y] <: Schema[Y]](left: L[B]): :+:[B, L, A, R] = new :+:(left, schema)
+      def -*>: (id: ProductTermId): ProductTerm[A]                = ProductTerm(id, schema)
+      def -+>: (id: SumTermId): SumTerm[A]                        = SumTerm(id, schema)
     }
 
     trait Representation[F[_]] {
@@ -124,7 +114,7 @@ trait SchemaModule {
       def handleUnion: F ~> F
       def labelBranch(label: SumTermId): F ~> F
       def handleList[A]: F[A] => F[List[A]]
-      def zero: F[Unit]
+      def unit: F[Unit]
     }
 
     def covariantFold[F[_]](representation: Representation[F])(implicit F: Alt[F]): Schema ~> F =
@@ -153,8 +143,7 @@ trait SchemaModule {
             representation.handleUnion(F.map(apply(u.choices))(u.iso.get))
           case SumTerm(id, base) => representation.labelBranch(id)(apply(base))
 
-          case Zero => representation.zero
-          case _    => ???
+          case One => representation.unit
         }
       }
 
@@ -185,7 +174,7 @@ trait SchemaModule {
           case SumTerm(id, base) => representation.labelBranch(id)(apply(base))
           case s: SeqSchema[a] =>
             representation.handleList(apply(s.element))
-          case Zero => representation.zero
+          case One => representation.unit
 
         }
       }

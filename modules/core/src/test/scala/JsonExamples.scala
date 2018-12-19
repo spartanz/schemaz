@@ -17,26 +17,28 @@ object JsonExamples {
 
     section("JSON Schema Tests")(
       test("Case Class should Serialize using Schema") { () =>
-        val schema = record(
+        val role: Schema[Role] = union(
+          "user" -+>: record(
+            "active" -*>: prim(JsonSchema.JsonBool),
+            Iso[Boolean, User](User.apply)(_.active)
+          ) :+:
+            "admin" -+>: record(
+            "rights" -*>: seq(prim(JsonSchema.JsonString)),
+            Iso[List[String], Admin](Admin.apply)(_.rights)
+          ),
+          Iso[User \/ Admin, Role] {
+            case -\/(u) => u
+            case \/-(a) => a
+          } {
+            case u @ User(_)  => -\/(u)
+            case a @ Admin(_) => \/-(a)
+          }
+        )
+
+        val schema: Schema[Person] = record(
           "name" -*>: prim(JsonSchema.JsonString) :*:
             "role" -*>: optional(
-            union(
-              "user" -+>: record(
-                "active" -*>: prim(JsonSchema.JsonBool),
-                Iso[Boolean, User](User.apply)(_.active)
-              ) :+:
-                "admin" -+>: record(
-                "rights" -*>: seq(prim(JsonSchema.JsonString)),
-                Iso[List[String], Admin](Admin.apply)(_.rights)
-              ),
-              Iso[User \/ Admin, Role] {
-                case -\/(u) => u
-                case \/-(a) => a
-              } {
-                case u @ User(_)  => -\/(u)
-                case a @ Admin(_) => \/-(a)
-              }
-            )
+            role
           ),
           Iso[(String, Option[Role]), Person]((Person.apply _).tupled)(p => (p.name, p.role))
         )

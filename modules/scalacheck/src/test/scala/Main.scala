@@ -1,3 +1,9 @@
+package scalaz
+
+package schema
+
+package scalacheck
+
 import scalaz.schema.TestMain
 import testz.Harness
 import testz.runner.Runner
