@@ -70,35 +70,25 @@ object GenModuleExamples {
 
         val personGen: Gen[Person] = personTupleSchema.toGen
 
-        val expectedUserGen: Gen[User] = for {
-          active <- arbitrary[Boolean]
-        } yield User(active)
-
-        val expectedAdminGen: Gen[Admin] = for {
-          rights <- Gen.listOf(arbitrary[String])
-        } yield Admin(rights)
-
-        val expectedPersonTupleGen: Gen[Person] = for {
-          role <- Gen.option(Gen.oneOf[Role](expectedUserGen, expectedAdminGen))
-          name <- arbitrary[String].map(identity)
-        } yield Person(name, role)
-
         val prop = forAll {
-          (seed: Long) =>
+          (seed1: Long, seed2: Long) =>
             val genParameters = Gen.Parameters.default
-            val genSeed       = Seed(seed)
+            val genSeed1      = Seed(seed1)
+            val genSeed2      = Seed(if (seed1 != seed2) seed2 else seed2 + 1) // make sure both seeds are different
 
-            // _.pureApply is not pure, it my throw Gen.RetrievalError
-
-            val actual =
-              personGen.pureApply(genParameters, genSeed)
-            val expected =
-              expectedPersonTupleGen
-                .pureApply(genParameters, genSeed)
-
-            /*s"""name: ${actual.name == expected.name}
-role: ${actual.role == expected.role}""" |: */
-            actual == expected
+            val stream = Gen.infiniteStream(personGen)
+            stream
+              .pureApply(genParameters, genSeed1)
+              .zip(stream.pureApply(genParameters, genSeed1))
+              .take(100)
+              .toList
+              .forall(p => p._1 == p._2) &&
+            stream
+              .pureApply(genParameters, genSeed1)
+              .zip(stream.pureApply(genParameters, genSeed2))
+              .take(100)
+              .toList
+              .forall(p => p._1 != p._2)
         }
 
         val result = prop(Gen.Parameters.default)

@@ -41,7 +41,7 @@ object GenModule {
       fa.flatMap(a => f.map(_(a)))
     override def point[T](a: => T): Gen[T] = Gen.const(a)
   }
-  fb.flatMap(b => f.map(_(b)))(map(fa)(f.curried))
+
   implicit val genAlt: Alt[Gen] = new Alt[Gen] {
     override def point[A](a: => A): org.scalacheck.Gen[A] = Gen.const(a)
     override def ap[A, B](fa: => org.scalacheck.Gen[A])(
