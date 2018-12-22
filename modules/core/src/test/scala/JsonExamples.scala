@@ -9,8 +9,15 @@ object JsonExamples {
 
   def tests[T](harness: Harness[T]): T = {
     import harness._
-    import scalaz.schema.Json._, module._
     import JsonSchema.{ Prim => _, _ }
+
+    val jsonModule = new JsonModule {
+      type Prim[A]       = JsonSchema.Prim[A]
+      type ProductTermId = String
+      type SumTermId     = String
+    }
+
+    import jsonModule._
 
     def matchJsonStrings(a: String, b: String): Boolean =
       a.toLowerCase.replaceAll("\\s+", "") == b.toLowerCase.replaceAll("\\s+", "")
@@ -43,24 +50,23 @@ object JsonExamples {
           Iso[(String, Option[Role]), Person]((Person.apply _).tupled)(p => (p.name, p.role))
         )
 
-        val mkSerializer = Schema
-          .contravariantFold(representation(new (Prim ~> Encoder) {
-            def apply[A](fa: Prim[A]): Encoder[A] = { a =>
-              fa match {
-                case JsonNumber => a.toString
-                case JsonBool   => a.toString
-                case JsonString => s""""$a""""
-                case JsonNull   => "null"
-              }
+        implicit val primToEncoderNT = new (Prim ~> Encoder) {
+          def apply[A](fa: Prim[A]): Encoder[A] = { a =>
+            fa match {
+              case JsonNumber => a.toString
+              case JsonBool   => a.toString
+              case JsonString => s""""$a""""
+              case JsonNull   => "null"
             }
-          }))
+          }
+        }
 
-        val serializer = mkSerializer(schema)
+        val serializer = schema.to[Encoder]
 
         type PersonTuple = (Seq[Char], Option[Role])
         val personTupleSchema = iso[Person, PersonTuple](schema, Person.personToTupleIso)
 
-        val isoSerializer = mkSerializer(personTupleSchema)
+        val isoSerializer = personTupleSchema.to[Encoder]
 
         val testCases: List[(Person, String)] = List(
           Person(null, None)                                          -> """{"name":null}""",

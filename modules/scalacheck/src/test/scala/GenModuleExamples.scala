@@ -24,7 +24,7 @@ object GenModuleExamples {
 
     section("Generating Gens")(
       test("Convert Schema to Gen") { () =>
-//        type PersonTuple = (Seq[Char], Option[Role])
+        type PersonTuple = (Seq[Char], Option[Role])
 
         val user = record(
           "active" -*>: prim(JsonSchema.JsonBool),
@@ -48,16 +48,16 @@ object GenModuleExamples {
           }
         )
 
-        val personTupleSchema = //iso[Person, PersonTuple](
+        val personTupleSchema = iso[Person, PersonTuple](
           record(
             "name" -*>: prim(JsonSchema.JsonString) :*:
               "role" -*>: optional(
               role
             ),
             Iso[(String, Option[Role]), Person]((Person.apply _).tupled)(p => (p.name, p.role))
-            //),
-            //Person.personToTupleIso
-          )
+          ),
+          Person.personToTupleIso
+        )
 
         implicit val primToGenNT = new (Prim ~> Gen) {
           override def apply[A](prim: JsonSchema.Prim[A]): Gen[A] = prim match {
@@ -68,7 +68,7 @@ object GenModuleExamples {
           }
         }
 
-        val personGen: Gen[Person] = personTupleSchema.toGen
+        val personGen: Gen[PersonTuple] = personTupleSchema.to[Gen]
 
         val prop = forAll {
           (seed1: Long, seed2: Long) =>

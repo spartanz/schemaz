@@ -1,21 +1,17 @@
-val testzVersion   = "0.0.4"
-val monocleVersion = "1.5.0"
+val testzVersion    = "0.0.4"
+val monocleVersion  = "1.5.0"
 val derivingVersion = "1.0.0"
 
 lazy val root = project
   .in(file("."))
   .settings(
-    name := "scalaz-schema",
-    addCompilerPlugin("io.tryp" % "splain" % "0.3.5" cross CrossVersion.patch)
+    name := "scalaz-schema"
   )
   .aggregate(
     core,
     scalacheck,
     `test-commons`
   )
-
-
-
 
 lazy val core = project
   .in(file("modules/core"))
@@ -25,8 +21,7 @@ lazy val core = project
       "com.github.julien-truffaut" %% "monocle-core"    % monocleVersion,
       "com.github.julien-truffaut" %% "monocle-macro"   % monocleVersion,
       "org.scalaz"                 %% "scalaz-deriving" % derivingVersion
-    ).map(_.exclude("org.scalaz", "scalaz")),
-    addCompilerPlugin("io.tryp" % "splain" % "0.3.5" cross CrossVersion.patch)
+    ).map(_.exclude("org.scalaz", "scalaz"))
   )
   .dependsOn(`test-commons` % "test->test")
 
@@ -35,10 +30,8 @@ lazy val scalacheck = project
   .settings(
     name := "scalaz-schema-scalacheck",
     libraryDependencies ++= Seq(
-      "org.scalacheck" %% "scalacheck" % "1.14.0",
-      "com.chuusai" %% "shapeless" % "2.3.2"
-    ),
-    addCompilerPlugin("io.tryp" % "splain" % "0.3.5" cross CrossVersion.patch)
+      "org.scalacheck" %% "scalacheck" % "1.14.0"
+    )
   )
   .dependsOn(core, `test-commons` % "test->test")
 
@@ -52,6 +45,5 @@ lazy val `test-commons` = project
       "org.scalaz"                 %% "testz-core"    % testzVersion   % "test",
       "org.scalaz"                 %% "testz-stdlib"  % testzVersion   % "test",
       "org.scalaz"                 %% "testz-runner"  % testzVersion   % "test"
-    ).map(_.exclude("org.scalaz", "scalaz")),
-    addCompilerPlugin("io.tryp" % "splain" % "0.3.5" cross CrossVersion.patch)
+    ).map(_.exclude("org.scalaz", "scalaz"))
   )
