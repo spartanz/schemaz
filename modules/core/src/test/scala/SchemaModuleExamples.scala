@@ -28,7 +28,7 @@ object SchemaModuleExamples {
           Iso[List[String], Admin](Admin.apply)(_.rights)
         )
 
-        adminSchema.imap(adminToListIso).imap(listToSeqIso) match {
+        adminSchema.imap(adminToListIso).imap(listToSeqIso).unFix match {
           case Schema.IsoSchema(base, _) => assert(base == adminSchema)
           case _                         => assert(false)
         }

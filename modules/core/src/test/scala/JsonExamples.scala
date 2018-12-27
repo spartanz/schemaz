@@ -24,7 +24,7 @@ object JsonExamples {
 
     section("JSON Schema Tests")(
       test("Case Class should Serialize using Schema") { () =>
-        val role: Schema[Role] = union(
+        val role: Fix[Schema, Role] = union(
           "user" -+>: record(
             "active" -*>: prim(JsonSchema.JsonBool),
             Iso[Boolean, User](User.apply)(_.active)
@@ -42,7 +42,7 @@ object JsonExamples {
           }
         )
 
-        val schema: Schema[Person] = record(
+        val schema: Fix[Schema, Person] = record(
           "name" -*>: prim(JsonSchema.JsonString) :*:
             "role" -*>: optional(
             role
