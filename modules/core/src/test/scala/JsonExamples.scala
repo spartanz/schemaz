@@ -61,10 +61,10 @@ object JsonExamples {
           }
         }
 
-        val serializer = schema.to[Encoder]
+        val serializer: Encoder[Person] = schema.to[Encoder]
 
-        type PersonTuple = (Seq[Char], Option[Role])
-        val personTupleSchema = iso[Person, PersonTuple](schema, Person.personToTupleIso)
+//        type PersonTuple = (Seq[Char], Option[Role])
+        val personTupleSchema = iso(schema, Person.personToTupleIso)
 
         val isoSerializer = personTupleSchema.to[Encoder]
 

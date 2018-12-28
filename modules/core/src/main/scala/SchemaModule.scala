@@ -106,11 +106,11 @@ trait SchemaModule {
     // Schema syntax
 
     implicit final class SchemaSyntax[A](schema: Fix[Schema, A]) {
-      def :*: [B](left: Fix[Schema, B]): Fix[Schema, (B, A)] = Fix(new :*:(left, schema))
-      def :+: [B](left: Fix[Schema, B]): Fix[Schema, B \/ A] = Fix(new :+:(left, schema))
-      def -*>: (id: ProductTermId): Fix[Schema, A]           = Fix(ProductTerm(id, schema))
-      def -+>: (id: SumTermId): Fix[Schema, A]               = Fix(SumTerm(id, schema))
-      def to[F[_]](implicit F: FoldableTo[F]): F[A]          = cataNT(F.algebra)(schema)
+      def :*: [B](left: Fix[Schema, B]): Fix[Schema, (B, A)]    = Fix(new :*:(left, schema))
+      def :+: [B](left: Fix[Schema, B]): Fix[Schema, B \/ A]    = Fix(new :+:(left, schema))
+      def -*>: (id: ProductTermId): Fix[Schema, A]              = Fix(ProductTerm(id, schema))
+      def -+>: (id: SumTermId): Fix[Schema, A]                  = Fix(SumTerm(id, schema))
+      def to[F[_]](implicit algebra: HAlgebra[Schema, F]): F[A] = cataNT(algebra)(schema)
 
       def imap[B](_iso: Iso[A, B]): Fix[Schema, B] = schema.unFix match {
         case IsoSchema(base, iso) => Fix(IsoSchema(base, iso.composeIso(_iso)))
@@ -153,59 +153,6 @@ trait SchemaModule {
     // Schema operations
     ///////////////////////
 
-    /**
-     * Required operations to handle leaves and "special cases" (records, unions, sequences)
-     * in the context of `F`.
-     */
-    trait Representation[F[_]] {
-
-      /**
-       * Way to handle this `SchemaModule`'s primitive types in the context of `F`.
-       */
-      def prims: Prim ~> F
-
-      /**
-       * Hook for special handling of records in the context of `F`.
-       */
-      def handleRecord: F ~> F = NaturalTransformation.refl[F]
-
-      /**
-       * Hook for handling labelling of record fields in the context of `F`.
-       * This is encoded as a lambda so that we can provide a default implementation
-       * that doesn't use the label without triggering an "unused parameter" warning.
-       */
-      def labelField: ProductTermId => F ~> F = l => NaturalTransformation.refl[F]
-
-      /**
-       * Hook for special handling of unions in the context of `F`.
-       */
-      def handleUnion: F ~> F = NaturalTransformation.refl[F]
-
-      /**
-       * Hook for handling labelling of union branches in the context of `F`.
-       * This is encoded as a lambda so that we can provide a default implementation
-       * that doesn't use the label without triggering an "unused parameter" warning.
-       */
-      def labelBranch: SumTermId => F ~> F = l => NaturalTransformation.refl[F]
-
-      /**
-       * Hook for special handling of sequences in the context of `F`.
-       */
-      def handleList[A]: F[A] => F[List[A]]
-
-      /**
-       * The representation of `Unit` in the context of `F`.
-       */
-      def unit: F[Unit]
-    }
-
-    /**
-     * Witnesses the fact that `F` has enough capabilities to be deduced from a `Schema`
-     */
-    trait FoldableTo[F[_]] {
-      def algebra: HAlgebra[Schema, F]
-    }
-
     type HAlgebra[F[_[_], _], G[_]] = F[G, ?] ~> G
 
     def cataNT[F[_]](alg: HAlgebra[Schema, F]): (FSchema ~> F) =
@@ -217,48 +164,6 @@ trait SchemaModule {
 
     type FSchema[A] = Fix[Schema, A]
 
-    implicit def covariantFoldableTo[F[_]](implicit F: Alt[F], representation: Representation[F]) =
-      new FoldableTo[F] {
-
-        override lazy val algebra: HAlgebra[Schema, F] = new (Schema[F, ?] ~> F) {
-
-          def apply[A](schema: Schema[F, A]): F[A] = schema match {
-            case PrimSchema(prim)          => representation.prims(prim)
-            case :*:(left, right)          => F.tuple2(left, right)
-            case :+:(left, right)          => F.either2(left, right)
-            case IsoSchema(base, iso)      => F.map(base)(iso.get)
-            case RecordSchema(fields, iso) => representation.handleRecord(F.map(fields)(iso.get))
-            case SeqSchema(element)        => representation.handleList(element)
-            case ProductTerm(id, base)     => representation.labelField(id)(base)
-            case Union(choices, iso)       => representation.handleUnion(F.map(choices)(iso.get))
-            case SumTerm(id, base)         => representation.labelBranch(id)(base)
-            case One()                     => representation.unit
-          }
-        }
-      }
-
-    implicit def contravariantFoldableTo[F[_]](
-      implicit F: Decidable[F],
-      representation: Representation[F]
-    ) = new FoldableTo[F] {
-
-      override lazy val algebra: HAlgebra[Schema, F] = new (Schema[F, ?] ~> F) {
-
-        def apply[A](schema: Schema[F, A]): F[A] = schema match {
-          case PrimSchema(prim)     => representation.prims(prim)
-          case p: :*:[F, a, b]      => F.divide2(p.left, p.right)(identity)
-          case s: :+:[F, a, b]      => F.choose2(s.left, s.right)(identity)
-          case IsoSchema(base, iso) => F.contramap(base)(iso.apply)
-          case RecordSchema(fields, iso) =>
-            representation.handleRecord(F.contramap(fields)(iso.apply))
-          case ProductTerm(id, base) => representation.labelField(id)(base)
-          case Union(choices, iso)   => representation.handleUnion(F.contramap(choices)(iso.apply))
-          case SumTerm(id, base)     => representation.labelBranch(id)(base)
-          case SeqSchema(element)    => representation.handleList(element)
-          case One()                 => representation.unit
-        }
-      }
-    }
   }
 
   ////////////////
