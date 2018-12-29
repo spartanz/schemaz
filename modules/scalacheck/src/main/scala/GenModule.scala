@@ -6,14 +6,14 @@ package scalacheck
 
 import org.scalacheck._
 
-trait GenModule extends SchemaModule {
+trait GenModule[R <: Realisation] extends SchemaModule[R] {
 
   import Schema._
 
-  implicit final def algebra(implicit primNT: Prim ~> Gen): HAlgebra[Schema, Gen] =
-    new (Schema[Gen, ?] ~> Gen) {
+  implicit final def algebra(implicit primNT: R#Prim ~> Gen): HAlgebra[Schema[R, ?[_], ?], Gen] =
+    new (Schema[R, Gen, ?] ~> Gen) {
 
-      def apply[A](schema: Schema[Gen, A]): Gen[A] = schema match {
+      def apply[A](schema: Schema[R, Gen, A]): Gen[A] = schema match {
         case PrimSchema(prim) => primNT(prim)
         case :*:(left, right) =>
           for {

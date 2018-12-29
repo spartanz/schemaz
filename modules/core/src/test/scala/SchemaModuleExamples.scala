@@ -10,11 +10,7 @@ object SchemaModuleExamples {
   def tests[T](harness: Harness[T]): T = {
     import harness._
 
-    val jsonModule = new JsonModule {
-      type Prim[A]       = JsonSchema.Prim[A]
-      type ProductTermId = String
-      type SumTermId     = String
-    }
+    val jsonModule = new JsonModule[JsonSchema.type] {}
 
     import jsonModule._
 
@@ -29,8 +25,8 @@ object SchemaModuleExamples {
         )
 
         adminSchema.imap(adminToListIso).imap(listToSeqIso).unFix match {
-          case Schema.IsoSchema(base, _) => assert(base == adminSchema)
-          case _                         => assert(false)
+          case IsoSchema(base, _) => assert(base == adminSchema)
+          case _                  => assert(false)
         }
       }
     )

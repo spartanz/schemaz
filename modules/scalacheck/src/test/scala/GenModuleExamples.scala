@@ -10,14 +10,11 @@ import monocle._
 
 object GenModuleExamples {
 
-  val jsonModule = new GenModule {
-    type Prim[A]       = JsonSchema.Prim[A]
-    type ProductTermId = String
-    type SumTermId     = String
-  }
+  val jsonModule = new GenModule[JsonSchema.type] {}
 
   def tests[T](harness: Harness[T]): T = {
     import harness._
+    import Schema._
     import jsonModule._
     import org.scalacheck.Gen
     import org.scalacheck.Arbitrary._
@@ -59,7 +56,7 @@ object GenModuleExamples {
           Person.personToTupleIso
         )
 
-        implicit val primToGenNT = new (Prim ~> Gen) {
+        implicit val primToGenNT = new (JsonSchema.Prim ~> Gen) {
           override def apply[A](prim: JsonSchema.Prim[A]): Gen[A] = prim match {
             case JsonSchema.JsonString => arbitrary[String]
             case JsonSchema.JsonNumber => arbitrary[BigDecimal]
