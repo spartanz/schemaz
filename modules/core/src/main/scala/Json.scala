@@ -2,6 +2,8 @@ package scalaz
 
 package schema
 
+import Liskov._
+
 trait JsonModule extends SchemaModule {
   type JSON = String
 
@@ -11,8 +13,8 @@ trait JsonModule extends SchemaModule {
 
   implicit final def algebra(
     implicit primNT: Prim ~> Encoder,
-    fieldLabel: Liskov[ProductTermId, String],
-    branchLabel: Liskov[SumTermId, String]
+    fieldLabel: ProductTermId <~< String,
+    branchLabel: SumTermId <~< String
   ): HAlgebra[Schema, Encoder] = new (Schema[Encoder, ?] ~> Encoder) {
 
     val encloseInBraces         = (s: String) => s"{$s}"
