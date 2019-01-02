@@ -4,74 +4,31 @@ package schema
 
 package scalacheck
 
-import org.scalacheck.Gen
+import org.scalacheck._
 
 trait GenModule extends SchemaModule {
 
-  trait ToGen[S[_]] {
-    def toGen: S ~> Gen
-  }
+  import Schema._
 
-  implicit class ToGenOps[A](schema: Schema[A]) {
+  implicit final def algebra(implicit primNT: Prim ~> Gen): HAlgebra[Schema, Gen] =
+    new (Schema[Gen, ?] ~> Gen) {
 
-    def toGen(implicit primToGen: Prim ~> Gen): Gen[A] =
-      schemaToGen(primToGen)(schema)
-  }
-
-  private def schemaToGen(implicit primToGen: Prim ~> Gen): Schema ~> Gen =
-    new (Schema ~> Gen) {
-      override def apply[A](schema: Schema[A]): Gen[A] = schema match {
-        case prim: Schema.PrimSchema[_]     => primToGen(prim.prim)
-        case record: Schema.RecordSchema[_] => recordGen(record)
-        case union: Schema.Union[_]         => unionGen(union)
-        case seq: Schema.SeqSchema[_]       => seqGen(seq)
-        case iso: Schema.IsoSchema[_, _]    => schemaToGen(primToGen)(iso.base).map(iso.iso.get)
+      def apply[A](schema: Schema[Gen, A]): Gen[A] = schema match {
+        case PrimSchema(prim) => primNT(prim)
+        case :*:(left, right) =>
+          for {
+            l <- left
+            r <- right
+          } yield (l, r)
+        case :+:(left, right)          => Gen.oneOf(left.map(-\/(_)), right.map(\/-(_)))
+        case IsoSchema(base, iso)      => base.map(iso.get)
+        case RecordSchema(fields, iso) => fields.map(iso.get)
+        case SeqSchema(element)        => Gen.listOf(element)
+        case ProductTerm(_, base)      => base
+        case Union(choices, iso)       => choices.map(iso.get)
+        case SumTerm(_, base)          => base
+        case One()                     => Gen.const(())
       }
     }
 
-  private def recordGen[A](
-    schema: Schema.RecordSchema[A]
-  )(
-    implicit
-    primToGen: Prim ~> Gen
-  ): Gen[A] = {
-    implicit val genAp: Applicative[Gen] = new Applicative[Gen] {
-      override def ap[T, U](fa: => Gen[T])(f: => Gen[T => U]): Gen[U] =
-        fa.flatMap(a => f.map(_(a)))
-      override def point[T](a: => T): Gen[T] = Gen.const(a)
-    }
-
-    schema.fields.foldMap(new (Schema.Field[A, ?] ~> Gen) {
-      override def apply[B](fa: Schema.Field[A, B]): Gen[B] = fa match {
-        case Schema.Field.Essential(_, base, _, _) =>
-          schemaToGen(primToGen)(base)
-        case Schema.Field.NonEssential(_, base, _) =>
-          Gen.option(schemaToGen(primToGen)(base))
-      }
-    })
-  }
-
-  private def unionGen[A](schema: Schema.Union[A])(implicit primToGen: Prim ~> Gen): Gen[A] = {
-    val branchGens = schema.terms.map(term => branchGen(term))
-    branchGens.tail.headOption
-      .fold(branchGens.head)(
-        g => Gen.oneOf(branchGens.head, g, branchGens.tail.toList.tail: _*)
-      )
-  }
-
-  private def branchGen[A, A0](
-    branch: Schema.Branch[A, A0]
-  )(
-    implicit
-    primToGen: Prim ~> Gen
-  ): Gen[A] =
-    schemaToGen(primToGen)(branch.base).map(branch.prism.reverseGet)
-
-  private def seqGen[A](
-    schema: Schema.SeqSchema[A]
-  )(
-    implicit
-    primToGen: Prim ~> Gen
-  ): Gen[List[A]] =
-    Gen.listOf(schemaToGen(primToGen)(schema.element))
 }

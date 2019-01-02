@@ -2,77 +2,71 @@ package scalaz
 
 package schema
 
-import scalaz.Scalaz._
 import testz._
+import monocle._
 
 object JsonExamples {
 
   def tests[T](harness: Harness[T]): T = {
     import harness._
-    import scalaz.schema.Json._
-    import scalaz.schema.Json.module._
+    import JsonSchema.{ Prim => _, _ }
+
+    val jsonModule = new JsonModule {
+      type Prim[A]       = JsonSchema.Prim[A]
+      type ProductTermId = String
+      type SumTermId     = String
+    }
+
+    import jsonModule._
 
     def matchJsonStrings(a: String, b: String): Boolean =
       a.toLowerCase.replaceAll("\\s+", "") == b.toLowerCase.replaceAll("\\s+", "")
 
     section("JSON Schema Tests")(
       test("Case Class should Serialize using Schema") { () =>
-        val schema = record[Person](
-          ^(
-            essentialField[Person, String](
-              "name",
-              prim(JsonSchema.JsonString),
-              Person.name,
-              None
-            ),
-            nonEssentialField[Person, Role](
-              "role",
-              union[Role](
-                branch(
-                  "user",
-                  record[User](
-                    essentialField(
-                      "active",
-                      prim(JsonSchema.JsonBool),
-                      Person.active,
-                      None
-                    ).map(User.apply)
-                  ),
-                  Person.user
-                ),
-                branch(
-                  "admin",
-                  record[Admin](
-                    essentialField(
-                      "rights",
-                      seq(prim(JsonSchema.JsonString)),
-                      Person.rights,
-                      None
-                    ).map(Admin.apply)
-                  ),
-                  Person.admin
-                )
-              ),
-              Person.role
-            )
-          )(Person.apply)
+        val role: Fix[Schema, Role] = union(
+          "user" -+>: record(
+            "active" -*>: prim(JsonSchema.JsonBool),
+            Iso[Boolean, User](User.apply)(_.active)
+          ) :+:
+            "admin" -+>: record(
+            "rights" -*>: seq(prim(JsonSchema.JsonString)),
+            Iso[List[String], Admin](Admin.apply)(_.rights)
+          ),
+          Iso[User \/ Admin, Role] {
+            case -\/(u) => u
+            case \/-(a) => a
+          } {
+            case u @ User(_)  => -\/(u)
+            case a @ Admin(_) => \/-(a)
+          }
         )
 
-        type PersonTuple = (Seq[Char], Option[Role])
-        val personTupleSchema = iso[Person, PersonTuple](schema, Person.personToTupleIso)
+        val schema: Fix[Schema, Person] = record(
+          "name" -*>: prim(JsonSchema.JsonString) :*:
+            "role" -*>: optional(
+            role
+          ),
+          Iso[(String, Option[Role]), Person]((Person.apply _).tupled)(p => (p.name, p.role))
+        )
 
-        val serializer: Person => Either[ToJsonErrors, JSON] =
-          jsonSerializer[Either, ToJsonErrors, Person](module)(schema)(identity, identity)(
-            err => Left(err)
-          )
+        implicit val primToEncoderNT = new (Prim ~> Encoder) {
+          def apply[A](fa: Prim[A]): Encoder[A] = { a =>
+            fa match {
+              case JsonNumber => a.toString
+              case JsonBool   => a.toString
+              case JsonString => s""""$a""""
+              case JsonNull   => "null"
+            }
+          }
+        }
 
-        val isoSerializer: PersonTuple => Either[ToJsonErrors, JSON] =
-          jsonSerializer[Either, ToJsonErrors, PersonTuple](module)(personTupleSchema)(
-            identity,
-            identity
-          )(
-            err => Left(err)
-          )
+        val serializer: Encoder[Person] = schema.to[Encoder]
+
+//        type PersonTuple = (Seq[Char], Option[Role])
+        val personTupleSchema = iso(schema, Person.personToTupleIso)
+
+        val isoSerializer = personTupleSchema.to[Encoder]
 
         val testCases: List[(Person, String)] = List(
           Person(null, None)                                          -> """{"name":null}""",
@@ -84,106 +78,41 @@ object JsonExamples {
         testCases.foldLeft[Result](Succeed)(
           (res, testCase) =>
             (res, testCase) match {
-              case (Succeed, (data, expected)) =>
-                ^(serializer(data), isoSerializer(Person.personToTupleIso.reverse(data)))(
-                  (json, isoJson) => {
-                    val same    = matchJsonStrings(json, expected)
-                    val isoSame = matchJsonStrings(isoJson, expected)
+              case (Succeed, (data, expected)) => {
+                val json    = serializer(data)
+                val isoJson = isoSerializer(Person.personToTupleIso.reverse(data))
 
-                    val res =
-                      if (same) Succeed else Fail(List(Right(s"got $json expected $expected")))
-                    val isoRes =
-                      if (isoSame) Succeed
-                      else Fail(List(Right(s"got $isoJson expected $expected")))
+                val same    = matchJsonStrings(json, expected)
+                val isoSame = matchJsonStrings(isoJson, expected)
 
-                    Result.combine(res, isoRes)
-                  }
-                ).fold(
-                  {
-                    case Json.UnionBranchError(a, s) =>
-                      Fail(
-                        List(
-                          Right(
-                            s"Union Branch Error (No Union Branch resulted in a Value) value : $a union schema: $s"
-                          )
-                        )
-                      )
-                  },
-                  identity
-                )
-              case (fail: testz.Fail, (data, expected)) =>
-                ^(serializer(data), isoSerializer(Person.personToTupleIso.reverse(data)))(
-                  (json, isoJson) => {
-                    val same    = matchJsonStrings(json, expected)
-                    val isoSame = matchJsonStrings(isoJson, expected)
+                val res =
+                  if (same) Succeed else Fail(List(Right(s"got $json expected $expected")))
+                val isoRes =
+                  if (isoSame) Succeed
+                  else Fail(List(Right(s"got $isoJson expected $expected")))
 
-                    val res =
-                      if (same) Succeed
-                      else Fail(Right(s"got $json expected $expected") :: fail.failures)
-                    val isoRes =
-                      if (isoSame) Succeed
-                      else Fail(Right(s"got $isoJson expected $expected") :: fail.failures)
+                Result.combine(res, isoRes)
+              }
 
-                    Result.combine(res, isoRes)
-                  }
-                ).fold(
-                  {
-                    case Json.UnionBranchError(a, s) =>
-                      Fail(
-                        Right(
-                          s"Union Branch Error (No Union Branch resulted in a Value) value : $a union schema: $s"
-                        ) :: fail.failures
-                      )
-                  },
-                  identity
-                )
+              case (fail: testz.Fail, (data, expected)) => {
+                val json    = serializer(data)
+                val isoJson = isoSerializer(Person.personToTupleIso.reverse(data))
+                val same    = matchJsonStrings(json, expected)
+                val isoSame = matchJsonStrings(isoJson, expected)
+
+                val res =
+                  if (same) Succeed
+                  else Fail(Right(s"got $json expected $expected") :: fail.failures)
+                val isoRes =
+                  if (isoSame) Succeed
+                  else Fail(Right(s"got $isoJson expected $expected") :: fail.failures)
+
+                Result.combine(res, isoRes)
+              }
+
             }
         )
 
-      },
-      test(
-        "Should Fail in M[_] when missing a Union Branch. Down the Line this Test can be deleted as constructing such a schema should become impossible"
-      ) { () =>
-        val schema = record[Person](
-          ^(
-            essentialField[Person, String](
-              "name",
-              prim(JsonSchema.JsonString),
-              Person.name,
-              None
-            ),
-            nonEssentialField[Person, Role](
-              "role",
-              union[Role](
-                branch(
-                  "user",
-                  record[User](
-                    essentialField(
-                      "active",
-                      prim(JsonSchema.JsonBool),
-                      Person.active,
-                      None
-                    ).map(User.apply)
-                  ),
-                  Person.user
-                )
-              ),
-              Person.role
-            )
-          )(Person.apply)
-        )
-
-        val serializer: Person => Either[ToJsonErrors, JSON] =
-          jsonSerializer[Either, ToJsonErrors, Person](module)(schema)(identity, identity)(
-            err => Left(err)
-          )
-
-        serializer(Person("Alfred", Some(Admin(List("foo"))))).fold[Result](
-          {
-            case Json.UnionBranchError(_, _) => Succeed
-          },
-          json => Fail.string(s"this should not have succeeded but returned: $json")
-        )
       }
     )
   }

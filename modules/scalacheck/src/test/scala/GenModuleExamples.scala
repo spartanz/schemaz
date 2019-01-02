@@ -1,10 +1,12 @@
+package scalaz
+
+package schema
+
+package scalacheck
+
 import testz._
-import org.scalacheck.rng.Seed
-import scalaz.Scalaz._
-import scalaz.schema._
-import scalaz.schema.JsonSchema.{ JsonBool, JsonNull, JsonNumber, JsonString }
-import scalaz.schema.scalacheck.GenModule
-import scalaz.~>
+import org.scalacheck._, Prop._, rng.Seed
+import monocle._
 
 object GenModuleExamples {
 
@@ -24,82 +26,74 @@ object GenModuleExamples {
       test("Convert Schema to Gen") { () =>
         type PersonTuple = (Seq[Char], Option[Role])
 
+        val user = record(
+          "active" -*>: prim(JsonSchema.JsonBool),
+          Iso[Boolean, User](User.apply)(_.active)
+        )
+
+        val admin = record(
+          "rights" -*>: seq(prim(JsonSchema.JsonString)),
+          Iso[List[String], Admin](Admin.apply)(_.rights)
+        )
+
+        val role = union(
+          "user" -+>: user :+:
+            "admin" -+>: admin,
+          Iso[User \/ Admin, Role] {
+            case -\/(u) => u
+            case \/-(a) => a
+          } {
+            case u @ User(_)  => -\/(u)
+            case a @ Admin(_) => \/-(a)
+          }
+        )
+
         val personTupleSchema = iso[Person, PersonTuple](
-          record[Person](
-            ^(
-              essentialField[Person, String](
-                "name",
-                prim(JsonSchema.JsonString),
-                Person.name,
-                None
-              ),
-              nonEssentialField[Person, Role](
-                "role",
-                union[Role](
-                  branch(
-                    "user",
-                    record[User](
-                      essentialField(
-                        "active",
-                        prim(JsonSchema.JsonBool),
-                        Person.active,
-                        None
-                      ).map(User.apply)
-                    ),
-                    Person.user
-                  ),
-                  branch(
-                    "admin",
-                    record[Admin](
-                      essentialField(
-                        "rights",
-                        seq(prim(JsonSchema.JsonString)),
-                        Person.rights,
-                        None
-                      ).map(Admin.apply)
-                    ),
-                    Person.admin
-                  )
-                ),
-                Person.role
-              )
-            )(Person.apply)
+          record(
+            "name" -*>: prim(JsonSchema.JsonString) :*:
+              "role" -*>: optional(
+              role
+            ),
+            Iso[(String, Option[Role]), Person]((Person.apply _).tupled)(p => (p.name, p.role))
           ),
           Person.personToTupleIso
         )
 
         implicit val primToGenNT = new (Prim ~> Gen) {
           override def apply[A](prim: JsonSchema.Prim[A]): Gen[A] = prim match {
-            case JsonString => arbitrary[String]
-            case JsonNumber => arbitrary[BigDecimal]
-            case JsonBool   => arbitrary[Boolean]
-            case JsonNull   => arbitrary[Null]
+            case JsonSchema.JsonString => arbitrary[String]
+            case JsonSchema.JsonNumber => arbitrary[BigDecimal]
+            case JsonSchema.JsonBool   => arbitrary[Boolean]
+            case JsonSchema.JsonNull   => arbitrary[Null]
           }
         }
 
-        val personGen: Gen[PersonTuple] = personTupleSchema.toGen
+        val personGen: Gen[PersonTuple] = personTupleSchema.to[Gen]
 
-        val expectedUserGen: Gen[User] = for {
-          active <- arbitrary[Boolean]
-        } yield User(active)
+        val prop = forAll {
+          (seed1: Long, seed2: Long) =>
+            val genParameters = Gen.Parameters.default
+            val genSeed1      = Seed(seed1)
+            val genSeed2      = Seed(if (seed1 != seed2) seed2 else seed2 + 1) // make sure both seeds are different
 
-        val expectedAdminGen: Gen[Admin] = for {
-          rights <- Gen.listOf(arbitrary[String])
-        } yield Admin(rights)
+            val stream = Gen.infiniteStream(personGen)
+            stream
+              .pureApply(genParameters, genSeed1)
+              .zip(stream.pureApply(genParameters, genSeed1))
+              .take(100)
+              .toList
+              .forall(p => p._1 == p._2) &&
+            stream
+              .pureApply(genParameters, genSeed1)
+              .zip(stream.pureApply(genParameters, genSeed2))
+              .take(100)
+              .toList
+              .forall(p => p._1 != p._2)
+        }
 
-        val expectedPersonTupleGen: Gen[PersonTuple] = for {
-          name <- arbitrary[Seq[Char]]
-          role <- Gen.option(Gen.oneOf(expectedUserGen, expectedAdminGen))
-        } yield (name, role)
-
-        val genParameters = Gen.Parameters.default
-        val genSeed       = Seed.random()
-
-        // _.pureApply is not pure, it my throw Gen.RetrievalError
-        assert(
-          personGen.pureApply(genParameters, genSeed) == expectedPersonTupleGen
-            .pureApply(genParameters, genSeed)
-        )
+        val result = prop(Gen.Parameters.default)
+        println(result)
+        if (result.success) Succeed else Fail(List(Right(result.status.toString)))
       }
     )
   }
