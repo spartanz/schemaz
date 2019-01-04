@@ -41,7 +41,9 @@ trait ContextFreeAlgebras extends SchemaModule {
     def apply[A](schema: Schema[H, A]): H[A] = schema match {
       case PrimSchema(prim)          => primNT(prim)
       case :*:(left, right)          => H.tuple2(left,right)
-      case :+:(left, right)          => H.choose(left, right)(identity)
+      case x: :+:[_, a, b]           => H.choose(x.left,x.right)(identity[a \/ b])
+      //UHOH THOSE BOTH COMPILE?!
+      //case IsoSchema(base, iso)      => H.contramap(base)(iso.get)
       case IsoSchema(base, iso)      => H.contramap(base)(iso.reverseGet)
       case RecordSchema(fields, iso) => H.contramap(fields)(iso.reverseGet)
       case SeqSchema(element)        => seqNT(element)
