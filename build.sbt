@@ -1,5 +1,6 @@
 val testzVersion   = "0.0.4"
 val monocleVersion = "1.5.0"
+val derivingVersion = "1.0.0"
 
 inThisBuild(scalaVersion := "2.12.8")
 
@@ -20,7 +21,8 @@ lazy val core = project
     name := "scalaz-schema-core",
     libraryDependencies ++= Seq(
       "com.github.julien-truffaut" %% "monocle-core"  % monocleVersion,
-      "com.github.julien-truffaut" %% "monocle-macro" % monocleVersion
+      "com.github.julien-truffaut" %% "monocle-macro" % monocleVersion,
+      "org.scalaz"                 %% "scalaz-deriving" % derivingVersion
     ).map(_.exclude("org.scalaz", "scalaz"))
   )
 
