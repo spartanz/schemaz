@@ -33,7 +33,7 @@ trait JsonModule[R <: Realisation] extends SchemaModule[R] {
           case :+:(left, right) => (a => a.fold(left, right))
           case i: IsoSchema[R.Prim, R.SumTermId, R.ProductTermId, Encoder, _, A] =>
             i.base.compose(i.iso.reverseGet)
-          case r: RecordSchema[R.Prim, R.SumTermId, R.ProductTermId, Encoder, A, _] =>
+          case r: Record[R.Prim, R.SumTermId, R.ProductTermId, Encoder, A, _] =>
             encloseInBraces.compose(r.fields).compose(r.iso.reverseGet)
           case SeqSchema(element)    => (a => a.map(element).mkString("[", ",", "]"))
           case ProductTerm(id, base) => makeField(fieldLabel(id)).compose(base)
