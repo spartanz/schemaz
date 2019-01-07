@@ -1,0 +1,22 @@
+options:
+
+  - title: Schemas
+    url: schemas/
+    menu_section: schemas
+    menu_type: schemas
+    nested_options:
+      - title: Schema modules
+        url: schemas/index.html#schema-modules
+      - title: Building schemas
+        url: schemas/index.html#building-schemas
+ 
+  - title: Interpreters
+    url: interpreters/
+    menu_section: interpreters
+    menu_type: interpreters
+    nested_options:
+      - title: "Scalacheck Generators"
+        url: interpreters/scalacheck.html
+
+    
+
