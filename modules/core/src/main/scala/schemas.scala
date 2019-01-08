@@ -21,8 +21,10 @@ object ScalaSchema {
   final case object ScalaUnit       extends ScalaPrim[Unit]
 }
 
-object JsonSchema {
-  type Prim[A] = JsonPrim[A]
+object JsonSchema extends Realisation {
+  type Prim[A]       = JsonPrim[A]
+  type ProductTermId = String
+  type SumTermId     = String
 
   sealed trait JsonPrim[A]
   final case object JsonString extends JsonPrim[String]
