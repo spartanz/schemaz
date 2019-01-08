@@ -10,7 +10,9 @@ import monocle._
 
 object GenModuleExamples {
 
-  val jsonModule = new GenModule[JsonSchema.type] {}
+  val jsonModule = new GenModule[JsonSchema.type] {
+    val R = JsonSchema
+  }
 
   def tests[T](harness: Harness[T]): T = {
     import harness._
