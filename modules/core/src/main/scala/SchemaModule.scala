@@ -72,12 +72,15 @@ final case class SumTerm[F[_], A, Prim[_], SumTermId, ProductTermId](id: SumTerm
 
 /**
  * An union, eg. a sum of named branches
+ * This class cannot be constructed directly, you must use the `SchemaModule#union` method.
  */
-final case class Union[Prim[_], SumTermId, ProductTermId, F[_], A, AE] private (
+sealed abstract case class Union[Prim[_], SumTermId, ProductTermId, F[_], A, AE](
   choices: F[AE],
   iso: Iso[AE, A]
 ) extends Schema[Prim, SumTermId, ProductTermId, F, A] {
-  def hmap[G[_]](nt: F ~> G): Schema[Prim, SumTermId, ProductTermId, G, A] = Union(nt(choices), iso)
+
+  def hmap[G[_]](nt: F ~> G): Schema[Prim, SumTermId, ProductTermId, G, A] =
+    new Union[Prim, SumTermId, ProductTermId, G, A, AE](nt(choices), iso) {}
 }
 
 /**
@@ -94,14 +97,15 @@ final case class ProductTerm[F[_], A, Prim[_], SumTermId, ProductTermId](
 
 /**
  * A record, eg. a product of named fields
+ * This class cannot be constructed directly, you must use the `SchemaModule#record` method.
  */
-final case class RecordSchema[Prim[_], SumTermId, ProductTermId, F[_], A, AP] private (
+sealed abstract case class Record[Prim[_], SumTermId, ProductTermId, F[_], A, AP](
   fields: F[AP],
   iso: Iso[AP, A]
 ) extends Schema[Prim, SumTermId, ProductTermId, F, A] {
 
   def hmap[G[_]](nt: F ~> G): Schema[Prim, SumTermId, ProductTermId, G, A] =
-    RecordSchema(nt(fields), iso)
+    new Record[Prim, SumTermId, ProductTermId, G, A, AP](nt(fields), iso) {}
 }
 
 /**
@@ -129,11 +133,56 @@ final case class IsoSchema[Prim[_], SumTermId, ProductTermId, F[_], A0, A](
 
 object Schema {
 
-  // Writing final here triggers a warning, using sealed instead achieves almost the same effect
-  // without warning. See https://issues.scala-lang.org/browse/SI-4440
-
   type FSchema[Prim[_], SumTermId, ProductTermId, A] =
     Fix[Schema[Prim, SumTermId, ProductTermId, ?[_], ?], A]
+
+  sealed private[schema] trait LabelledSum[Prim[_], SumTermId, ProductTermId, A] {
+    def toSchema: FSchema[Prim, SumTermId, ProductTermId, A]
+
+    def :+: [B](
+      l: LabelledSum[Prim, SumTermId, ProductTermId, B]
+    ): LabelledSum[Prim, SumTermId, ProductTermId, B \/ A] = LabelledSum2(l, this)
+  }
+
+  final private[schema] case class LabelledSum1[Prim[_], SumTermId, ProductTermId, A](
+    id: SumTermId,
+    schema: FSchema[Prim, SumTermId, ProductTermId, A]
+  ) extends LabelledSum[Prim, SumTermId, ProductTermId, A] {
+    def toSchema = Fix(SumTerm(id, schema))
+
+  }
+
+  final private[schema] case class LabelledSum2[Prim[_], SumTermId, ProductTermId, A, B](
+    l: LabelledSum[Prim, SumTermId, ProductTermId, A],
+    r: LabelledSum[Prim, SumTermId, ProductTermId, B]
+  ) extends LabelledSum[Prim, SumTermId, ProductTermId, A \/ B] {
+    def toSchema = Fix(new :+:(l.toSchema, r.toSchema))
+
+  }
+
+  sealed private[schema] trait LabelledProduct[Prim[_], SumTermId, ProductTermId, A] {
+    def toSchema: FSchema[Prim, SumTermId, ProductTermId, A]
+
+    def :*: [B](
+      l: LabelledProduct[Prim, SumTermId, ProductTermId, B]
+    ): LabelledProduct[Prim, SumTermId, ProductTermId, (B, A)] = LabelledProduct2(l, this)
+  }
+
+  final private[schema] case class LabelledProduct1[Prim[_], SumTermId, ProductTermId, A](
+    id: ProductTermId,
+    schema: FSchema[Prim, SumTermId, ProductTermId, A]
+  ) extends LabelledProduct[Prim, SumTermId, ProductTermId, A] {
+    def toSchema = Fix(ProductTerm(id, schema))
+
+  }
+
+  final private[schema] case class LabelledProduct2[Prim[_], SumTermId, ProductTermId, A, B](
+    l: LabelledProduct[Prim, SumTermId, ProductTermId, A],
+    r: LabelledProduct[Prim, SumTermId, ProductTermId, B]
+  ) extends LabelledProduct[Prim, SumTermId, ProductTermId, (A, B)] {
+    def toSchema = Fix(new :*:(l.toSchema, r.toSchema))
+
+  }
 
   // Schema syntax
 
@@ -149,9 +198,11 @@ object Schema {
       left: FSchema[Prim, SumTermId, ProductTermId, B]
     ): FSchema[Prim, SumTermId, ProductTermId, B \/ A] = Fix(new :+:(left, schema))
 
-    def -*>: (id: ProductTermId): FSchema[Prim, SumTermId, ProductTermId, A] =
-      Fix(ProductTerm(id, schema))
-    def -+>: (id: SumTermId): FSchema[Prim, SumTermId, ProductTermId, A] = Fix(SumTerm(id, schema))
+    def -*>: (id: ProductTermId): LabelledProduct[Prim, SumTermId, ProductTermId, A] =
+      LabelledProduct1(id, schema)
+
+    def -+>: (id: SumTermId): LabelledSum[Prim, SumTermId, ProductTermId, A] =
+      LabelledSum1(id, schema)
 
     def to[F[_]](
       implicit algebra: HAlgebra[Schema[Prim, SumTermId, ProductTermId, ?[_], ?], F]
@@ -164,36 +215,6 @@ object Schema {
 
   }
 
-  /////////////////////////
-  // Utility typeclasses
-  /////////////////////////
-  /*
-   /**
-   * Witnesses the fact that `T` is a product whose all members are `ProductTerm`s
-   */
-   trait LabelledProduct[T]
-
-   implicit def labelledProduct[A, B, R[_] <: Schema[_]](
-   implicit @deprecated("don't warn", "") proof: LabelledProduct[R[B]]
-   ): LabelledProduct[:*:[A, ProductTerm, B, R]] =
-   new LabelledProduct[:*:[A, ProductTerm, B, R]] {}
-
-   implicit def singleLabelledProduct[A]: LabelledProduct[ProductTerm[A]] =
-   new LabelledProduct[ProductTerm[A]] {}
-
-   /**
-   * Witnesses the fact that `T` is a sum whose all members are `SumTerm`s
-   */
-   trait LabelledSum[T]
-
-   implicit def labelledSum[A, B, R[X] <: Schema[X]](
-   implicit @deprecated("don't warn", "") proof: LabelledSum[R[B]]
-   ): LabelledSum[:+:[A, SumTerm, B, R]] =
-   new LabelledSum[:+:[A, SumTerm, B, R]] {}
-
-   implicit def singleLabelledSum[A]: LabelledSum[SumTerm[A]] =
-   new LabelledSum[SumTerm[A]] {}
-   */
   ///////////////////////
   // Schema operations
   ///////////////////////
@@ -230,10 +251,19 @@ trait SchemaModule[R <: Realisation] {
     Fix(PrimSchema(prim))
 
   final def union[A, AE](
-    choices: FSchema[R.Prim, R.SumTermId, R.ProductTermId, AE],
+    choices: LabelledSum[R.Prim, R.SumTermId, R.ProductTermId, AE],
     iso: Iso[AE, A]
   ): FSchema[R.Prim, R.SumTermId, R.ProductTermId, A] =
-    Fix(Union(choices, iso))
+    Fix(
+      new Union[
+        R.Prim,
+        R.SumTermId,
+        R.ProductTermId,
+        FSchema[R.Prim, R.SumTermId, R.ProductTermId, ?],
+        A,
+        AE
+      ](choices.toSchema, iso) {}
+    )
 
   final def optional[A](
     aSchema: FSchema[R.Prim, R.SumTermId, R.ProductTermId, A]
@@ -253,10 +283,19 @@ trait SchemaModule[R <: Realisation] {
     )
 
   final def record[A, An](
-    terms: FSchema[R.Prim, R.SumTermId, R.ProductTermId, An],
+    terms: LabelledProduct[R.Prim, R.SumTermId, R.ProductTermId, An],
     isoA: Iso[An, A]
   ): FSchema[R.Prim, R.SumTermId, R.ProductTermId, A] =
-    Fix(RecordSchema(terms, isoA))
+    Fix(
+      new Record[
+        R.Prim,
+        R.SumTermId,
+        R.ProductTermId,
+        FSchema[R.Prim, R.SumTermId, R.ProductTermId, ?],
+        A,
+        An
+      ](terms.toSchema, isoA) {}
+    )
 
   final def seq[A](
     element: FSchema[R.Prim, R.SumTermId, R.ProductTermId, A]

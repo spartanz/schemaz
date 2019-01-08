@@ -23,14 +23,14 @@ trait GenModule[R <: Realisation] extends SchemaModule[R] {
               l <- left
               r <- right
             } yield (l, r)
-          case :+:(left, right)          => Gen.oneOf(left.map(-\/(_)), right.map(\/-(_)))
-          case IsoSchema(base, iso)      => base.map(iso.get)
-          case RecordSchema(fields, iso) => fields.map(iso.get)
-          case SeqSchema(element)        => Gen.listOf(element)
-          case ProductTerm(_, base)      => base
-          case Union(choices, iso)       => choices.map(iso.get)
-          case SumTerm(_, base)          => base
-          case One()                     => Gen.const(())
+          case :+:(left, right)     => Gen.oneOf(left.map(-\/(_)), right.map(\/-(_)))
+          case IsoSchema(base, iso) => base.map(iso.get)
+          case Record(fields, iso)  => fields.map(iso.get)
+          case SeqSchema(element)   => Gen.listOf(element)
+          case ProductTerm(_, base) => base
+          case Union(choices, iso)  => choices.map(iso.get)
+          case SumTerm(_, base)     => base
+          case One()                => Gen.const(())
         }
     }
 
