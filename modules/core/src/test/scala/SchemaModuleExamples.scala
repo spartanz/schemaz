@@ -10,7 +10,9 @@ object SchemaModuleExamples {
   def tests[T](harness: Harness[T]): T = {
     import harness._
 
-    val jsonModule = new JsonModule[JsonSchema.type] {}
+    val jsonModule = new JsonModule[JsonSchema.type] {
+      override val R = JsonSchema
+    }
 
     import jsonModule._
 

@@ -14,7 +14,9 @@ object JsonExamples {
     import harness._
     import JsonSchema.{ Prim => _, _ }
 
-    val module = new JsonModule[JsonSchema.type] {}
+    val module = new JsonModule[JsonSchema.type] {
+      override val R = JsonSchema
+    }
 
     import module._
 
@@ -23,7 +25,7 @@ object JsonExamples {
 
     section("JSON Schema Tests")(
       test("Case Class should Serialize using Schema") { () =>
-        val role: FSchema[JsonSchema.type, Role] = union(
+        val role = union(
           "user" -+>: record(
             "active" -*>: prim(JsonSchema.JsonBool),
             Iso[Boolean, User](User.apply)(_.active)
@@ -41,7 +43,7 @@ object JsonExamples {
           }
         )
 
-        val schema: FSchema[JsonSchema.type, Person] = record(
+        val schema = record(
           "name" -*>: prim(JsonSchema.JsonString) :*:
             "role" -*>: optional(
             role
