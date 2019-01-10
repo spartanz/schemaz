@@ -7,8 +7,7 @@ package scalacheck
 import org.scalacheck._
 import generic.GenericAlgebra
 
-
-trait GenModule[R <: Realistation] extends GenericAlgebra[R] {
+trait GenModule[R <: Realisation] extends GenericAlgebra[R] {
 
   import Schema._
 
@@ -39,7 +38,9 @@ trait GenModule[R <: Realistation] extends GenericAlgebra[R] {
     override def apply[A](a: Gen[(L, A)]): Gen[A] = a.map(_._2)
   }
 
-  implicit final def algebra(implicit primNT: R.Prim ~> Gen): HAlgebra[Schema[R.Prim, R.SumTermId, R.ProductTermId, ?[_], ?], Gen] =
+  implicit final def algebra(
+    implicit primNT: R.Prim ~> Gen
+  ): HAlgebra[Schema[R.Prim, R.SumTermId, R.ProductTermId, ?[_], ?], Gen] =
     covariantTargetFunctor[Gen](
       primNT,
       seqNT,
