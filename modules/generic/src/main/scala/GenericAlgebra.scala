@@ -2,7 +2,9 @@ package scalaz
 
 package schema
 
-trait ContextFreeAlgebras extends SchemaModule {
+package generic
+
+trait GenericAlgebra extends SchemaModule {
 
   import Schema._
 
