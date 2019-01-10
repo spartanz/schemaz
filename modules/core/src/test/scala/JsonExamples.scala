@@ -7,24 +7,25 @@ import monocle._
 
 object JsonExamples {
 
+  import Json._
+  import Schema._
+
   def tests[T](harness: Harness[T]): T = {
     import harness._
     import JsonSchema.{ Prim => _, _ }
 
-    val jsonModule = new JsonModule {
-      type Prim[A]       = JsonSchema.Prim[A]
-      type ProductTermId = String
-      type SumTermId     = String
+    val module = new JsonModule[JsonSchema.type] {
+      override val R = JsonSchema
     }
 
-    import jsonModule._
+    import module._
 
     def matchJsonStrings(a: String, b: String): Boolean =
       a.toLowerCase.replaceAll("\\s+", "") == b.toLowerCase.replaceAll("\\s+", "")
 
     section("JSON Schema Tests")(
       test("Case Class should Serialize using Schema") { () =>
-        val role: Fix[Schema, Role] = union(
+        val role = union(
           "user" -+>: record(
             "active" -*>: prim(JsonSchema.JsonBool),
             Iso[Boolean, User](User.apply)(_.active)
@@ -42,7 +43,7 @@ object JsonExamples {
           }
         )
 
-        val schema: Fix[Schema, Person] = record(
+        val schema = record(
           "name" -*>: prim(JsonSchema.JsonString) :*:
             "role" -*>: optional(
             role
@@ -50,8 +51,8 @@ object JsonExamples {
           Iso[(String, Option[Role]), Person]((Person.apply _).tupled)(p => (p.name, p.role))
         )
 
-        implicit val primToEncoderNT = new (Prim ~> Encoder) {
-          def apply[A](fa: Prim[A]): Encoder[A] = { a =>
+        implicit val primToEncoderNT = new (JsonSchema.type#Prim ~> Encoder) {
+          def apply[A](fa: JsonSchema.type#Prim[A]): Encoder[A] = { a =>
             fa match {
               case JsonNumber => a.toString
               case JsonBool   => a.toString
