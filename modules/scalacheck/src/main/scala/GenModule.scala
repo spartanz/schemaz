@@ -30,10 +30,6 @@ trait GenModule[R <: Realisation] extends GenericAlgebra[R] {
       } yield x
   }
 
-  private val seqNT: Gen ~> λ[X => Gen[List[X]]] = new (Gen ~> λ[X => Gen[List[X]]]) {
-    override def apply[A](a: Gen[A]): Gen[List[A]] = Gen.listOf(a)
-  }
-
   private def discardLabel[L]: λ[X => Gen[(L, X)]] ~> Gen = new (λ[X => Gen[(L, X)]] ~> Gen) {
     override def apply[A](a: Gen[(L, A)]): Gen[A] = a.map(_._2)
   }
@@ -43,7 +39,7 @@ trait GenModule[R <: Realisation] extends GenericAlgebra[R] {
   ): HAlgebra[Schema[R.Prim, R.SumTermId, R.ProductTermId, ?[_], ?], Gen] =
     covariantTargetFunctor[Gen](
       primNT,
-      seqNT,
+      λ[Gen ~> λ[X => Gen[List[X]]]](x => Gen.listOf(x)),
       discardLabel,
       discardLabel,
       Gen.const(())
