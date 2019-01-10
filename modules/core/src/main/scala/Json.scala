@@ -19,28 +19,34 @@ trait JsonModule[R <: Realisation] extends SchemaModule[R] {
     implicit primNT: R.Prim ~> Encoder,
     fieldLabel: R.ProductTermId <~< String,
     branchLabel: R.SumTermId <~< String
-  ): HAlgebra[RSchema, Encoder] =
-    new (RSchema[Encoder, ?] ~> Encoder) {
+  ): RInterpreter[Encoder] =
+    new Interpreter[R.Prim, R.SumTermId, R.ProductTermId, Encoder] {
 
-      val encloseInBraces         = (s: String) => s"{$s}"
-      def makeField(name: String) = (s: String) => s""""$name":$s"""
+      val alg: HAlgebra[RSchema, Encoder] = new (RSchema[Encoder, ?] ~> Encoder) {
 
-      def apply[A](schema: RSchema[Encoder, A]): Encoder[A] =
-        schema match {
+        val encloseInBraces         = (s: String) => s"{$s}"
+        def makeField(name: String) = (s: String) => s""""$name":$s"""
 
-          case PrimSchema(prim) => primNT(prim)
-          case :*:(left, right) => (a => left(a._1) + "," + right(a._2))
-          case :+:(left, right) => (a => a.fold(left, right))
-          case i: RIso[Encoder, _, A] =>
-            i.base.compose(i.iso.reverseGet)
-          case r: RRecord[Encoder, _, A] =>
-            encloseInBraces.compose(r.fields).compose(r.iso.reverseGet)
-          case SeqSchema(element)    => (a => a.map(element).mkString("[", ",", "]"))
-          case ProductTerm(id, base) => makeField(fieldLabel(id)).compose(base)
-          case u: RUnion[Encoder, _, A] =>
-            encloseInBraces.compose(u.choices).compose(u.iso.reverseGet)
-          case SumTerm(id, base) => makeField(branchLabel(id)).compose(base)
-          case One()             => (_ => "null")
-        }
+        def apply[A](schema: RSchema[Encoder, A]): Encoder[A] =
+          schema match {
+
+            case PrimSchema(prim) => primNT(prim)
+            case :*:(left, right) => (a => left(a._1) + "," + right(a._2))
+            case :+:(left, right) => (a => a.fold(left, right))
+            case i: IsoSchema[R.Prim, R.SumTermId, R.ProductTermId, Encoder, _, A] =>
+              i.base.compose(i.iso.reverseGet)
+            case r: Record[R.Prim, R.SumTermId, R.ProductTermId, Encoder, A, _] =>
+              encloseInBraces.compose(r.fields).compose(r.iso.reverseGet)
+            case SeqSchema(element)    => (a => a.map(element).mkString("[", ",", "]"))
+            case ProductTerm(id, base) => makeField(fieldLabel(id)).compose(base)
+            case u: Union[R.Prim, R.SumTermId, R.ProductTermId, Encoder, A, _] =>
+              encloseInBraces.compose(u.choices).compose(u.iso.reverseGet)
+            case SumTerm(id, base) => makeField(branchLabel(id)).compose(base)
+            case One()             => (_ => "null")
+          }
+      }
+
+      def interpret = cataNT(alg)
+
     }
 }

@@ -12,8 +12,11 @@ trait GenModule[R <: Realisation] extends SchemaModule[R] {
 
   import SchemaF._
 
-  implicit final def algebra(implicit primNT: R.Prim ~> Gen): HAlgebra[RSchema, Gen] =
-    new (RSchema[Gen, ?] ~> Gen) {
+  implicit final def algebra(
+    implicit primNT: R.Prim ~> Gen
+  ): RInterpreter[Gen] =
+    new Interpreter[R.Prim, R.SumTermId, R.ProductTermId, Gen] {
+      val alg: HAlgebra[RSchema, Gen] = new (RSchema[Gen, ?] ~> Gen) {
 
       def apply[A](schema: RSchema[Gen, A]): Gen[A] =
         schema match {
@@ -32,6 +35,10 @@ trait GenModule[R <: Realisation] extends SchemaModule[R] {
           case SumTerm(_, base)     => base
           case One()                => Gen.const(())
         }
+    }
+
+      def interpret = cataNT(alg)
+
     }
 
 }
