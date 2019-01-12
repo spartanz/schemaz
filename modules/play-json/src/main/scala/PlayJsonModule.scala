@@ -59,10 +59,10 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
 
   // This is needed to allow undefined optional fields to be treated as `None`.
   final private def undefinedAsNull[A](field: String, r: Reads[A]): Reads[A] = Reads { json =>
-    (json \ field) match {
+    ((json \ field) match {
       case JsDefined(v) => r.reads(v)
       case _            => r.reads(JsNull)
-    }
+    }).repath(JsPath \ field)
   }
 
   final private val labellingSeed =
@@ -90,7 +90,16 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
           case :+:(left, right) =>
             Reads(
               json =>
-                left.reads(json).fold(_ => right.reads(json).map(\/-.apply), a => JsSuccess(-\/(a)))
+                left
+                  .reads(json)
+                  .fold(
+                    el =>
+                      right.reads(json).map(\/-.apply) match {
+                        case JsError(er) => JsError(JsError.merge(el, er))
+                        case x           => x
+                      },
+                    a => JsSuccess(-\/(a))
+                  )
             )
           case p: :*:[Reads, a, b, R.Prim, R.SumTermId, R.ProductTermId] =>
             if (schema.ask)
