@@ -150,6 +150,20 @@ final case class IsoSchema[Prim[_], SumTermId, ProductTermId, F[_], A0, A](
     IsoSchema(nt(base), iso)
 }
 
+/**
+ * An interpreter able to derive a `F[A]` from a schema for `A` (for any `A`).
+ * Such interpreters will usually be implemented using a recursion scheme like
+ * 'cataNT`or hyloNT`.
+ */
+trait Interpreter[Prim[_], SumTermId, ProductTermId, F[_]] {
+
+  /**
+   * A natural transformation that will transform a schema for any type `A`
+   * into an `F[A]`.
+   */
+  def interpret: Schema.FSchema[Prim, SumTermId, ProductTermId, ?] ~> F
+}
+
 object SchemaF {
 
   implicit def schemaHFunctor[Prim[_], SumTermId, ProductTermId] =
