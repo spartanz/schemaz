@@ -73,19 +73,19 @@ object GenModuleExamples {
             stream
               .pureApply(genParameters, genSeed1)
               .zip(stream.pureApply(genParameters, genSeed1))
-              .take(100)
+              .take(10)
               .toList
               .forall(p => p._1 == p._2) &&
             stream
               .pureApply(genParameters, genSeed1)
               .zip(stream.pureApply(genParameters, genSeed2))
-              .take(100)
+              .take(10)
               .toList
               .forall(p => p._1 != p._2)
         }
 
-        val result = prop(Gen.Parameters.default)
-        if (result.success) Succeed else Fail(List(Right(result.status.toString)))
+        val result = Test.check(Test.Parameters.default, prop)
+        if (result.passed) Succeed else Fail(List(Right(result.status.toString)))
       }
     )
   }

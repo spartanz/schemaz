@@ -129,21 +129,6 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
       def interpret = hyloNT(labelRecordFields, alg).compose(labellingSeed)
     }
 
-  implicit val jsonPrimReads = new (JsonSchema.Prim ~> Reads) {
-
-    def apply[A](p: JsonSchema.Prim[A]): Reads[A] = p match {
-      case JsonSchema.JsonNull =>
-        Reads {
-          case JsNull => JsSuccess(())
-          case _      => JsError("expected 'null'")
-        }
-      case JsonSchema.JsonBool   => JsPath.read[Boolean]
-      case JsonSchema.JsonString => JsPath.read[String]
-      case JsonSchema.JsonNumber => JsPath.read[BigDecimal]
-    }
-
-  }
-
   implicit final def writes(
     implicit primNT: R.Prim ~> Writes,
     branchLabel: R.SumTermId <~< String,
@@ -182,14 +167,4 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
       def interpret = hyloNT(labelRecordFields, alg).compose(labellingSeed)
 
     }
-
-  implicit val jsonPrimWrites = new (JsonSchema.Prim ~> Writes) {
-
-    def apply[A](p: JsonSchema.Prim[A]): Writes[A] = p match {
-      case JsonSchema.JsonNull   => Writes(_ => JsNull)
-      case JsonSchema.JsonBool   => Writes(b => JsBoolean(b))
-      case JsonSchema.JsonNumber => Writes(n => JsNumber(n))
-      case JsonSchema.JsonString => Writes(s => JsString(s))
-    }
-  }
 }
