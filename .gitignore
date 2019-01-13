@@ -446,3 +446,7 @@ project/plugins/project/
 *.class
 *.log
 .idea
+
+
+# Travis keys
+travis-deploy-key*
