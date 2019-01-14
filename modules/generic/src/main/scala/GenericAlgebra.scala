@@ -11,7 +11,7 @@ trait GenericSchemaModule[R <: Realisation] extends SchemaModule[R] {
   type Id[A] = A
 
   def covariantTargetFunctor[H[_]](
-    primNT: Prim ~> H,
+    primNT: R.Prim ~> H,
     seqNT: H ~> λ[X => H[List[X]]],
     prodLabelNT: λ[X => (R.ProductTermId, H[X])] ~> H,
     sumLabelNT: λ[X => (R.SumTermId, H[X])] ~> H,
@@ -37,10 +37,9 @@ trait GenericSchemaModule[R <: Realisation] extends SchemaModule[R] {
           case _: One[R.Prim, R.SumTermId, R.ProductTermId, H] => one
         }
     }
-  }
 
   def contravariantTargetFunctor[H[_]](
-    primNT: Prim ~> H,
+    primNT: R.Prim ~> H,
     seqNT: H ~> λ[X => H[List[X]]],
     prodLabelNT: λ[X => (R.ProductTermId, H[X])] ~> H,
     sumLabelNT: λ[X => (R.SumTermId, H[X])] ~> H,
@@ -72,6 +71,5 @@ trait GenericSchemaModule[R <: Realisation] extends SchemaModule[R] {
           case _: One[R.Prim, R.SumTermId, R.ProductTermId, H] => one
         }
     }
-  }
 
 }

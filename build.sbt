@@ -34,7 +34,7 @@ lazy val generic = project
       "org.scalaz" %% "scalaz-deriving" % derivingVersion
     ).map(_.exclude("org.scalaz", "scalaz"))
   )
-  .dependsOn(core, `test-commons` % "test->test")
+  .dependsOn(core)
 
 lazy val scalacheck = project
   .in(file("modules/scalacheck"))
