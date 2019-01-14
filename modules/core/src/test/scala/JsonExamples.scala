@@ -70,8 +70,8 @@ object JsonExamples {
         val isoSerializer = personTupleSchema.to[Encoder]
 
         val testCases: List[(Person, String)] = List(
-          Person(null, None)                                          -> """{"name":null}""",
-          Person("Alfred", None)                                      -> """{"name":"Alfred"}""",
+          Person(null, None)                                          -> """{"name":"null", "role": null}""",
+          Person("Alfred", None)                                      -> """{"name":"Alfred", "role": null}""",
           Person("Alfred the Second", Some(User(true)))               -> """{"name":"Alfred the Second", "role": {"user": {"active":true}}}""",
           Person("Alfred the Third", Some(Admin(List("sys", "dev")))) -> """{"name":"Alfred the Third", "role": {"admin": {"rights": ["sys", "dev"]}}}"""
         )
