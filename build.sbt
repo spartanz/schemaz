@@ -47,7 +47,6 @@ lazy val scalacheck = project
   )
   .dependsOn(core)
 
-
 lazy val playJson = project
   .in(file("modules/play-json"))
   .settings(
@@ -57,7 +56,6 @@ lazy val playJson = project
     )
   )
   .dependsOn(core)
-
 
 lazy val tests = project
   .in(file("modules/tests"))

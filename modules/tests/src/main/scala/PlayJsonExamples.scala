@@ -2,17 +2,16 @@ package scalaz
 
 package schema
 
-package play.json
+package tests
 
 import testz._
 import _root_.play.api.libs.json._
-import monocle.Iso
 import org.scalacheck._, Prop._, Arbitrary._
 
 object PlayJsonExamples {
 
-  val jsonModule = new PlayJsonModule[JsonSchema.type] with scalacheck.GenModule[JsonSchema.type] {
-    val R = JsonSchema
+  val module = new TestModule with play.json.PlayJsonModule[JsonSchema.type]
+  with scalacheck.GenModule[JsonSchema.type] {
 
     implicit val primToGenNT = new (JsonSchema.Prim ~> Gen) {
       override def apply[A](prim: JsonSchema.Prim[A]): Gen[A] = prim match {
@@ -52,7 +51,7 @@ object PlayJsonExamples {
   def tests[T](harness: Harness[T]): T = {
     import harness._
     import Schema._
-    import jsonModule._
+    import module._
     import JsonSchema._
 
     section("play-json codecs")(
@@ -67,34 +66,6 @@ object PlayJsonExamples {
         )
       },
       test("Derived `Reads` and `Writes` for a given schema should be symmetrical") { () =>
-        val user = record(
-          "active" -*>: prim(JsonSchema.JsonBool),
-          Iso[Boolean, User](User.apply)(_.active)
-        )
-
-        val admin = record(
-          "rights" -*>: seq(prim(JsonSchema.JsonString)),
-          Iso[List[String], Admin](Admin.apply)(_.rights)
-        )
-
-        val person = record(
-          "name" -*>: prim(JsonSchema.JsonString) :*:
-            "role" -*>: optional(
-            union(
-              "user" -+>: user :+:
-                "admin" -+>: admin,
-              Iso[User \/ Admin, Role] {
-                case -\/(u) => u
-                case \/-(a) => a
-              } {
-                case u @ User(_)  => -\/(u)
-                case a @ Admin(_) => \/-(a)
-              }
-            )
-          ),
-          Iso[(String, Option[Role]), Person]((Person.apply _).tupled)(p => (p.name, p.role))
-        )
-
         implicit val personGen = Arbitrary(person.to[Gen])
 
         val reader = person.to[Reads]
