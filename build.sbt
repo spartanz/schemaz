@@ -31,7 +31,7 @@ lazy val generic =  project
   .settings(
     name := "scalaz-schema-generic",
     libraryDependencies ++= Seq(
-      "org.scalaz"                 %% "scalaz-deriving" % derivingVersion
+      "org.scalaz" %% "scalaz-deriving" % derivingVersion
     ).map(_.exclude("org.scalaz", "scalaz"))
   )
   .dependsOn(core, `test-commons` % "test->test")
