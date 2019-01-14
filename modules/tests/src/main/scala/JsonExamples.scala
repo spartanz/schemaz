@@ -75,10 +75,10 @@ object JsonExamples {
                 val isoSame = matchJsonStrings(isoJson, expected)
 
                 val res =
-                  if (same) Succeed
+                  if (same) fail
                   else Fail(Right(s"got $json expected $expected") :: fail.failures)
                 val isoRes =
-                  if (isoSame) Succeed
+                  if (isoSame) fail
                   else Fail(Right(s"got $isoJson expected $expected") :: fail.failures)
 
                 Result.combine(res, isoRes)
