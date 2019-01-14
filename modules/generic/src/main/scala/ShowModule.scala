@@ -16,7 +16,14 @@ trait ShowModule[R <: Realisation] extends GenericSchemaModule[R] {
     override def divide[A, B, C](fa: Show[A], fb: Show[B])(f: C => (A, B)): Show[C] = Show.shows[C](
       c => {
         val tpl = f(c)
-        s"""(${fa.shows(tpl._1)}, ${fb.shows(tpl._2)})"""
+
+        val lhs = fa.shows(tpl._1)
+        val rhs = fb.shows(tpl._2)
+
+        if (lhs != "" && rhs != "") s"""($lhs, $rhs)"""
+        else if (lhs == "" && rhs != "") s"""$rhs"""
+        else if (lhs != "" && rhs == "") s"""$lhs"""
+        else ""
       }
     )
   }
@@ -24,10 +31,10 @@ trait ShowModule[R <: Realisation] extends GenericSchemaModule[R] {
   private def prependLabel[L](showL: L => String): λ[X => (L, Show[X])] ~> Show =
     new (λ[X => (L, Show[X])] ~> Show) {
       override def apply[X](tpl: (L, Show[X])): Show[X] =
-        Show.shows[X](x => s"""${showL(tpl._1)} = ${tpl._2.shows(x)}""")
+        Show.shows[X](x => s"""${showL(tpl._1)} = (${tpl._2.shows(x)})""")
     }
 
-  implicit def algebra(
+  def showAlgebra(
     primNT: R.Prim ~> Show,
     prodLabelToString: R.ProductTermId => String,
     sumLabelToString: R.SumTermId => String
