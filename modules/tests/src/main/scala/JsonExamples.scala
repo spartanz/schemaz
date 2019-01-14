@@ -2,6 +2,8 @@ package scalaz
 
 package schema
 
+package tests
+
 import testz._
 import monocle._
 

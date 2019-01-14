@@ -2,7 +2,9 @@ package scalaz
 
 package schema
 
-package scalacheck
+package tests
+
+import scalacheck._
 
 import testz._
 import org.scalacheck._, Prop._, rng.Seed
