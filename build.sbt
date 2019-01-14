@@ -1,5 +1,5 @@
-val testzVersion   = "0.0.4"
-val monocleVersion = "1.5.0"
+val testzVersion    = "0.0.4"
+val monocleVersion  = "1.5.0"
 val derivingVersion = "1.0.0"
 
 inThisBuild(scalaVersion := "2.12.8")
@@ -27,7 +27,7 @@ lazy val core = project
   )
   .dependsOn(`test-commons` % "test->test")
 
-lazy val generic =  project
+lazy val generic = project
   .in(file("modules/generic"))
   .settings(
     name := "scalaz-schema-generic",
