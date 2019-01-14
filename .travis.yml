@@ -7,5 +7,5 @@ jdk:
 before_install:
   - export PATH=${PATH}:./vendor/bundle
 script:
-  - sbt ++$TRAVIS_SCALA_VERSION scalafmtCheck test:scalafmtCheck scalafmtSbtCheck "project core" test:run "project scalacheck" test:run
+  - sbt ++$TRAVIS_SCALA_VERSION scalafmtCheck test:scalafmtCheck scalafmtSbtCheck tests/run
 
