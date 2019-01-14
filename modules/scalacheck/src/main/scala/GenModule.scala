@@ -5,9 +5,9 @@ package schema
 package scalacheck
 
 import org.scalacheck._
-import generic.GenericAlgebra
+import generic.GenericSchemaModule
 
-trait GenModule[R <: Realisation] extends GenericAlgebra[R] {
+trait GenModule[R <: Realisation] extends GenericSchemaModule[R] {
 
   import Schema._
 
@@ -30,8 +30,8 @@ trait GenModule[R <: Realisation] extends GenericAlgebra[R] {
       } yield x
   }
 
-  private def discardLabel[L]: λ[X => Gen[(L, X)]] ~> Gen = new (λ[X => Gen[(L, X)]] ~> Gen) {
-    override def apply[A](a: Gen[(L, A)]): Gen[A] = a.map(_._2)
+  private def discardLabel[L]: λ[X => (L, Gen[X])] ~> Gen = new (λ[X => (L, Gen[X])] ~> Gen) {
+    override def apply[A](a: (L, Gen[A])): Gen[A] = a._2
   }
 
   implicit final def algebra(

@@ -4,7 +4,7 @@ package schema
 
 package generic
 
-trait GenericAlgebra[R <: Realisation] extends SchemaModule[R] {
+trait GenericSchemaModule[R <: Realisation] extends SchemaModule[R] {
 
   import Schema._
   //import R._
@@ -14,8 +14,8 @@ trait GenericAlgebra[R <: Realisation] extends SchemaModule[R] {
   def covariantTargetFunctor[H[_]](
     primNT: R.Prim ~> H,
     seqNT: H ~> λ[X => H[List[X]]],
-    prodLabelNT: λ[X => H[(R.ProductTermId, X)]] ~> H,
-    sumLabelNT: λ[X => H[(R.SumTermId, X)]] ~> H,
+    prodLabelNT: λ[X => (R.ProductTermId, H[X])] ~> H,
+    sumLabelNT: λ[X => (R.SumTermId, H[X])] ~> H,
     one: H[Unit]
   )(implicit H: Alt[H]): HAlgebra[Schema[R.Prim, R.SumTermId, R.ProductTermId, ?[_], ?], H] =
     new (Schema[R.Prim, R.SumTermId, R.ProductTermId, H, ?] ~> H) {
@@ -31,10 +31,10 @@ trait GenericAlgebra[R <: Realisation] extends SchemaModule[R] {
           case x: Record[R.Prim, R.SumTermId, R.ProductTermId, H, a, a0] =>
             H.map(x.fields)(x.iso.get)
           case x: SeqSchema[H, a, R.Prim, R.SumTermId, R.ProductTermId] => seqNT(x.element)
-          case ProductTerm(id, base)                                    => prodLabelNT(H.tuple2(H.pure(id), base))
+          case ProductTerm(id, base)                                    => prodLabelNT((id, base))
           case x: Union[R.Prim, R.SumTermId, R.ProductTermId, H, a, a0] =>
             H.map(x.choices)(x.iso.get)
-          case SumTerm(id, base)                               => sumLabelNT(H.tuple2(H.pure(id), base))
+          case SumTerm(id, base)                               => sumLabelNT((id, base))
           case _: One[R.Prim, R.SumTermId, R.ProductTermId, H] => one
         }
     }
@@ -42,9 +42,8 @@ trait GenericAlgebra[R <: Realisation] extends SchemaModule[R] {
   def contravariantTargetFunctor[H[_]](
     primNT: R.Prim ~> H,
     seqNT: H ~> λ[X => H[List[X]]],
-    prodLabelNT: λ[X => H[(R.ProductTermId, X)]] ~> H,
-    sumLabelNT: λ[X => H[(R.SumTermId, X)]] ~> H,
-    pure: Id ~> H,
+    prodLabelNT: λ[X => (R.ProductTermId, H[X])] ~> H,
+    sumLabelNT: λ[X => (R.SumTermId, H[X])] ~> H,
     one: H[Unit]
   )(implicit H: Decidable[H]): HAlgebra[Schema[R.Prim, R.SumTermId, R.ProductTermId, ?[_], ?], H] =
     new (Schema[R.Prim, R.SumTermId, R.ProductTermId, H, ?] ~> H) {
@@ -66,10 +65,10 @@ trait GenericAlgebra[R <: Realisation] extends SchemaModule[R] {
           case x: Record[R.Prim, R.SumTermId, R.ProductTermId, H, a, a0] =>
             H.contramap(x.fields)(x.iso.reverseGet)
           case x: SeqSchema[H, a, R.Prim, R.SumTermId, R.ProductTermId] => seqNT(x.element)
-          case ProductTerm(id, base)                                    => prodLabelNT(H.tuple2(pure(id), base))
+          case ProductTerm(id, base)                                    => prodLabelNT((id, base))
           case x: Union[R.Prim, R.SumTermId, R.ProductTermId, H, a, a0] =>
             H.contramap(x.choices)(x.iso.reverseGet)
-          case SumTerm(id, base)                               => sumLabelNT(H.tuple2(pure(id), base))
+          case SumTerm(id, base)                               => sumLabelNT((id, base))
           case _: One[R.Prim, R.SumTermId, R.ProductTermId, H] => one
         }
     }
