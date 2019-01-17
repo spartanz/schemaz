@@ -1,6 +1,8 @@
 val testzVersion    = "0.0.4"
 val monocleVersion  = "1.5.0"
 val derivingVersion = "1.0.0"
+val scalacheckVersion = "1.14.0"
+
 
 inThisBuild(scalaVersion := "2.12.8")
 
@@ -13,7 +15,7 @@ lazy val root = project
     core,
     generic,
     scalacheck,
-    `test-commons`
+    tests
   )
 
 lazy val core = project
@@ -25,7 +27,6 @@ lazy val core = project
       "com.github.julien-truffaut" %% "monocle-macro" % monocleVersion
     ).map(_.exclude("org.scalaz", "scalaz"))
   )
-  .dependsOn(`test-commons` % "test->test")
 
 lazy val generic = project
   .in(file("modules/generic"))
@@ -35,27 +36,27 @@ lazy val generic = project
       "org.scalaz" %% "scalaz-deriving" % derivingVersion
     ).map(_.exclude("org.scalaz", "scalaz"))
   )
-  .dependsOn(core, `test-commons` % "test->test")
+  .dependsOn(core)
 
 lazy val scalacheck = project
   .in(file("modules/scalacheck"))
   .settings(
     name := "scalaz-schema-scalacheck",
     libraryDependencies ++= Seq(
-      "org.scalacheck" %% "scalacheck" % "1.14.0"
+      "org.scalacheck" %% "scalacheck" % scalacheckVersion
     )
   )
-  .dependsOn(core, generic, `test-commons` % "test->test")
+  .dependsOn(core, generic)
 
-lazy val `test-commons` = project
-  .in(file("modules/test-commons"))
+
+lazy val tests = project
+  .in(file("modules/tests"))
   .settings(
-    name := "scalaz-test-commons",
+    name := "tests",
     libraryDependencies ++= Seq(
-      "com.github.julien-truffaut" %% "monocle-core"  % monocleVersion % "test",
-      "com.github.julien-truffaut" %% "monocle-macro" % monocleVersion % "test",
-      "org.scalaz"                 %% "testz-core"    % testzVersion   % "test",
-      "org.scalaz"                 %% "testz-stdlib"  % testzVersion   % "test",
-      "org.scalaz"                 %% "testz-runner"  % testzVersion   % "test"
-    ).map(_.exclude("org.scalaz", "scalaz"))
+      "org.scalaz" %% "testz-core"   % testzVersion,
+      "org.scalaz" %% "testz-stdlib" % testzVersion,
+      "org.scalaz" %% "testz-runner" % testzVersion
+    )
   )
+  .dependsOn(core, scalacheck, generic)

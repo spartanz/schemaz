@@ -2,8 +2,9 @@ package scalaz
 
 package schema
 
+package tests
+
 import testz._
-import monocle._
 
 object JsonExamples {
 
@@ -14,9 +15,7 @@ object JsonExamples {
     import harness._
     import JsonSchema.{ Prim => _, _ }
 
-    val module = new JsonModule[JsonSchema.type] {
-      override val R = JsonSchema
-    }
+    val module = new TestModule with JsonModule[JsonSchema.type] {}
 
     import module._
 
@@ -25,32 +24,6 @@ object JsonExamples {
 
     section("JSON Schema Tests")(
       test("Case Class should Serialize using Schema") { () =>
-        val role = union(
-          "user" -+>: record(
-            "active" -*>: prim(JsonSchema.JsonBool),
-            Iso[Boolean, User](User.apply)(_.active)
-          ) :+:
-            "admin" -+>: record(
-            "rights" -*>: seq(prim(JsonSchema.JsonString)),
-            Iso[List[String], Admin](Admin.apply)(_.rights)
-          ),
-          Iso[User \/ Admin, Role] {
-            case -\/(u) => u
-            case \/-(a) => a
-          } {
-            case u @ User(_)  => -\/(u)
-            case a @ Admin(_) => \/-(a)
-          }
-        )
-
-        val schema = record(
-          "name" -*>: prim(JsonSchema.JsonString) :*:
-            "role" -*>: optional(
-            role
-          ),
-          Iso[(String, Option[Role]), Person]((Person.apply _).tupled)(p => (p.name, p.role))
-        )
-
         implicit val primToEncoderNT = new (JsonSchema.type#Prim ~> Encoder) {
           def apply[A](fa: JsonSchema.type#Prim[A]): Encoder[A] = { a =>
             fa match {
@@ -62,10 +35,10 @@ object JsonExamples {
           }
         }
 
-        val serializer: Encoder[Person] = schema.to[Encoder]
+        val serializer: Encoder[Person] = person.to[Encoder]
 
 //        type PersonTuple = (Seq[Char], Option[Role])
-        val personTupleSchema = iso(schema, Person.personToTupleIso)
+        val personTupleSchema = iso(person, Person.personToTupleIso)
 
         val isoSerializer = personTupleSchema.to[Encoder]
 

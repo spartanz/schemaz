@@ -7,7 +7,6 @@ package generic
 trait GenericSchemaModule[R <: Realisation] extends SchemaModule[R] {
 
   import Schema._
-  //import R._
 
   type Id[A] = A
 

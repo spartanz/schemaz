@@ -2,62 +2,26 @@ package scalaz
 
 package schema
 
-package scalacheck
+package tests
+
+import scalacheck._
 
 import testz._
 import org.scalacheck._, Prop._, rng.Seed
-import monocle._
 
 object GenModuleExamples {
 
-  val jsonModule = new GenModule[JsonSchema.type] {
-    val R = JsonSchema
-  }
+  val module = new TestModule with GenModule[JsonSchema.type] {}
 
   def tests[T](harness: Harness[T]): T = {
     import harness._
     import Schema._
-    import jsonModule._
+    import module._
     import org.scalacheck.Gen
     import org.scalacheck.Arbitrary._
 
     section("Generating Gens")(
       test("Convert Schema to Gen") { () =>
-        type PersonTuple = (Seq[Char], Option[Role])
-
-        val user = record(
-          "active" -*>: prim(JsonSchema.JsonBool),
-          Iso[Boolean, User](User.apply)(_.active)
-        )
-
-        val admin = record(
-          "rights" -*>: seq(prim(JsonSchema.JsonString)),
-          Iso[List[String], Admin](Admin.apply)(_.rights)
-        )
-
-        val role = union(
-          "user" -+>: user :+:
-            "admin" -+>: admin,
-          Iso[User \/ Admin, Role] {
-            case -\/(u) => u
-            case \/-(a) => a
-          } {
-            case u @ User(_)  => -\/(u)
-            case a @ Admin(_) => \/-(a)
-          }
-        )
-
-        val personTupleSchema = iso[Person, PersonTuple](
-          record(
-            "name" -*>: prim(JsonSchema.JsonString) :*:
-              "role" -*>: optional(
-              role
-            ),
-            Iso[(String, Option[Role]), Person]((Person.apply _).tupled)(p => (p.name, p.role))
-          ),
-          Person.personToTupleIso
-        )
-
         implicit val primToGenNT = new (JsonSchema.Prim ~> Gen) {
           override def apply[A](prim: JsonSchema.Prim[A]): Gen[A] = prim match {
             case JsonSchema.JsonString => arbitrary[String]
@@ -91,7 +55,6 @@ object GenModuleExamples {
         }
 
         val result = prop(Gen.Parameters.default)
-        println(result)
         if (result.success) Succeed else Fail(List(Right(result.status.toString)))
       }
     )
