@@ -1,8 +1,7 @@
-val testzVersion    = "0.0.4"
-val monocleVersion  = "1.5.0"
-val derivingVersion = "1.0.0"
+val testzVersion      = "0.0.4"
+val monocleVersion    = "1.5.0"
+val derivingVersion   = "1.0.0"
 val scalacheckVersion = "1.14.0"
-
 
 inThisBuild(scalaVersion := "2.12.8")
 
@@ -47,7 +46,6 @@ lazy val scalacheck = project
     )
   )
   .dependsOn(core)
-
 
 lazy val tests = project
   .in(file("modules/tests"))
