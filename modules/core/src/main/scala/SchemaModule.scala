@@ -238,6 +238,9 @@ trait SchemaModule[R <: Realisation] {
 
   import Schema._
 
+  type RProductTerm[F[_], A] = ProductTerm[F, A, R.Prim, R.SumTermId, R.ProductTermId]
+  type RSumTerm[F[_], A]     = SumTerm[F, A, R.Prim, R.SumTermId, R.ProductTermId]
+
   ////////////////
   // Public API
   ////////////////

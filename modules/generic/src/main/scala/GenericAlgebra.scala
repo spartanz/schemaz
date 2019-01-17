@@ -13,8 +13,8 @@ trait GenericSchemaModule[R <: Realisation] extends SchemaModule[R] {
   def covariantTargetFunctor[H[_]](
     primNT: R.Prim ~> H,
     seqNT: H ~> λ[X => H[List[X]]],
-    prodLabelNT: λ[X => (R.ProductTermId, H[X])] ~> H,
-    sumLabelNT: λ[X => (R.SumTermId, H[X])] ~> H,
+    prodLabelNT: RProductTerm[H, ?] ~> H,
+    sumLabelNT: RSumTerm[H, ?] ~> H,
     one: H[Unit]
   )(implicit H: Alt[H]): HAlgebra[Schema[R.Prim, R.SumTermId, R.ProductTermId, ?[_], ?], H] =
     new (Schema[R.Prim, R.SumTermId, R.ProductTermId, H, ?] ~> H) {
@@ -29,20 +29,20 @@ trait GenericSchemaModule[R <: Realisation] extends SchemaModule[R] {
             H.map(x.base)(x.iso.get)
           case x: Record[R.Prim, R.SumTermId, R.ProductTermId, H, a, a0] =>
             H.map(x.fields)(x.iso.get)
-          case x: SeqSchema[H, a, R.Prim, R.SumTermId, R.ProductTermId] => seqNT(x.element)
-          case ProductTerm(id, base)                                    => prodLabelNT((id, base))
+          case x: SeqSchema[H, a, R.Prim, R.SumTermId, R.ProductTermId]    => seqNT(x.element)
+          case pt: ProductTerm[H, a, R.Prim, R.SumTermId, R.ProductTermId] => prodLabelNT(pt)
           case x: Union[R.Prim, R.SumTermId, R.ProductTermId, H, a, a0] =>
             H.map(x.choices)(x.iso.get)
-          case SumTerm(id, base)                               => sumLabelNT((id, base))
-          case _: One[R.Prim, R.SumTermId, R.ProductTermId, H] => one
+          case st: SumTerm[H, a, R.Prim, R.SumTermId, R.ProductTermId] => sumLabelNT(st)
+          case _: One[R.Prim, R.SumTermId, R.ProductTermId, H]         => one
         }
     }
 
   def contravariantTargetFunctor[H[_]](
     primNT: R.Prim ~> H,
     seqNT: H ~> λ[X => H[List[X]]],
-    prodLabelNT: λ[X => (R.ProductTermId, H[X])] ~> H,
-    sumLabelNT: λ[X => (R.SumTermId, H[X])] ~> H,
+    prodLabelNT: RProductTerm[H, ?] ~> H,
+    sumLabelNT: RSumTerm[H, ?] ~> H,
     one: H[Unit]
   )(implicit H: Decidable[H]): HAlgebra[Schema[R.Prim, R.SumTermId, R.ProductTermId, ?[_], ?], H] =
     new (Schema[R.Prim, R.SumTermId, R.ProductTermId, H, ?] ~> H) {
@@ -63,12 +63,12 @@ trait GenericSchemaModule[R <: Realisation] extends SchemaModule[R] {
             H.contramap(x.base)(x.iso.reverseGet)
           case x: Record[R.Prim, R.SumTermId, R.ProductTermId, H, a, a0] =>
             H.contramap(x.fields)(x.iso.reverseGet)
-          case x: SeqSchema[H, a, R.Prim, R.SumTermId, R.ProductTermId] => seqNT(x.element)
-          case ProductTerm(id, base)                                    => prodLabelNT((id, base))
+          case x: SeqSchema[H, a, R.Prim, R.SumTermId, R.ProductTermId]    => seqNT(x.element)
+          case pt: ProductTerm[H, a, R.Prim, R.SumTermId, R.ProductTermId] => prodLabelNT(pt)
           case x: Union[R.Prim, R.SumTermId, R.ProductTermId, H, a, a0] =>
             H.contramap(x.choices)(x.iso.reverseGet)
-          case SumTerm(id, base)                               => sumLabelNT((id, base))
-          case _: One[R.Prim, R.SumTermId, R.ProductTermId, H] => one
+          case st: SumTerm[H, a, R.Prim, R.SumTermId, R.ProductTermId] => sumLabelNT(st)
+          case _: One[R.Prim, R.SumTermId, R.ProductTermId, H]         => one
         }
     }
 

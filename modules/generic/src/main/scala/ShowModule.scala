@@ -17,22 +17,19 @@ trait ShowModule[R <: Realisation] extends GenericSchemaModule[R] {
       c => {
         val tpl = f(c)
 
-        val lhs = fa.shows(tpl._1)
-        val rhs = fb.shows(tpl._2)
+        val lhs = fa.show(tpl._1)
+        val rhs = fb.show(tpl._2)
 
-        if (lhs != "" && rhs != "") s"""($lhs, $rhs)"""
-        else if (lhs == "" && rhs != "") s"""$rhs"""
-        else if (lhs != "" && rhs == "") s"""$lhs"""
-        else ""
+        (lhs, rhs) match {
+          case (s1, s2) if s1.isEmpty && s2.isEmpty  => ""
+          case (s1, s2) if s1.isEmpty && !s2.isEmpty => Show[Cord].shows(s2)
+          case (s1, s2) if !s1.isEmpty && s2.isEmpty => Show[Cord].shows(s1)
+          case (s1, s2) if !s1.isEmpty && !s2.isEmpty =>
+            s"""(${Show[Cord].shows(s1)}, ${Show[Cord].shows(s2)})"""
+        }
       }
     )
   }
-
-  private def prependLabel[L](showL: L => String): λ[X => (L, Show[X])] ~> Show =
-    new (λ[X => (L, Show[X])] ~> Show) {
-      override def apply[X](tpl: (L, Show[X])): Show[X] =
-        Show.shows[X](x => s"""${showL(tpl._1)} = (${tpl._2.shows(x)})""")
-    }
 
   def showAlgebra(
     primNT: R.Prim ~> Show,
@@ -47,8 +44,12 @@ trait ShowModule[R <: Realisation] extends GenericSchemaModule[R] {
             lst => lst.map(show.shows).mkString("[", ",", "]")
           )
       ),
-      prependLabel(prodLabelToString),
-      prependLabel(sumLabelToString),
+      λ[RProductTerm[Show, ?] ~> Show](
+        showL => Show.shows(x => s"""${prodLabelToString(showL.id)} = (${showL.schema.shows(x)})""")
+      ),
+      λ[RSumTerm[Show, ?] ~> Show](
+        showL => Show.shows(x => s"""${sumLabelToString(showL.id)} = (${showL.schema.shows(x)})""")
+      ),
       Show.shows[Unit](_ => "()")
     )
 }

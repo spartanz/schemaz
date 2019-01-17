@@ -5,44 +5,35 @@ package schema
 package scalacheck
 
 import org.scalacheck._
-import generic.GenericSchemaModule
 
-trait GenModule[R <: Realisation] extends GenericSchemaModule[R] {
+import org.scalacheck._
+
+trait GenModule[R <: Realisation] extends SchemaModule[R] {
 
   import Schema._
-
-  implicit val genApplicativeInstance: Applicative[Gen] = new Applicative[Gen] {
-    override def ap[T, U](fa: => Gen[T])(f: => Gen[T => U]): Gen[U] =
-      fa.flatMap(a => f.map(_(a)))
-    override def point[T](a: => T): Gen[T] = Gen.const(a)
-  }
-
-  implicit val genAltInstance: Alt[Gen] = new Alt[Gen] {
-    override def point[A](a: => A): org.scalacheck.Gen[A] = Gen.const(a)
-    override def ap[A, B](fa: => org.scalacheck.Gen[A])(
-      f: => org.scalacheck.Gen[A => B]
-    ): org.scalacheck.Gen[B] = genApplicativeInstance.ap(fa)(f)
-    override def alt[X](fa: => Gen[X], fb: => Gen[X]): Gen[X] =
-      for {
-        a <- fa
-        b <- fb
-        x <- Gen.oneOf(a, b)
-      } yield x
-  }
-
-  private def discardLabel[L]: λ[X => (L, Gen[X])] ~> Gen = new (λ[X => (L, Gen[X])] ~> Gen) {
-    override def apply[A](a: (L, Gen[A])): Gen[A] = a._2
-  }
 
   implicit final def algebra(
     implicit primNT: R.Prim ~> Gen
   ): HAlgebra[Schema[R.Prim, R.SumTermId, R.ProductTermId, ?[_], ?], Gen] =
-    covariantTargetFunctor[Gen](
-      primNT,
-      λ[Gen ~> λ[X => Gen[List[X]]]](x => Gen.listOf(x)),
-      discardLabel,
-      discardLabel,
-      Gen.const(())
-    )
+    new (Schema[R.Prim, R.SumTermId, R.ProductTermId, Gen, ?] ~> Gen) {
+
+      def apply[A](schema: Schema[R.Prim, R.SumTermId, R.ProductTermId, Gen, A]): Gen[A] =
+        schema match {
+          case PrimSchema(prim) => primNT(prim)
+          case :*:(left, right) =>
+            for {
+              l <- left
+              r <- right
+            } yield (l, r)
+          case :+:(left, right)     => Gen.oneOf(left.map(-\/(_)), right.map(\/-(_)))
+          case IsoSchema(base, iso) => base.map(iso.get)
+          case Record(fields, iso)  => fields.map(iso.get)
+          case SeqSchema(element)   => Gen.listOf(element)
+          case ProductTerm(_, base) => base
+          case Union(choices, iso)  => choices.map(iso.get)
+          case SumTerm(_, base)     => base
+          case One()                => Gen.const(())
+        }
+    }
 
 }

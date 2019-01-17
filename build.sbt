@@ -46,7 +46,7 @@ lazy val scalacheck = project
       "org.scalacheck" %% "scalacheck" % scalacheckVersion
     )
   )
-  .dependsOn(core, generic)
+  .dependsOn(core)
 
 
 lazy val tests = project
