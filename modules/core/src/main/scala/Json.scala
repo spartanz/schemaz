@@ -13,19 +13,19 @@ object Json {
 
 trait JsonModule[R <: Realisation] extends SchemaModule[R] {
   import Json._
-  import Schema._
+  import SchemaF._
 
   implicit final def algebra(
     implicit primNT: R.Prim ~> Encoder,
     fieldLabel: R.ProductTermId <~< String,
     branchLabel: R.SumTermId <~< String
-  ): HAlgebra[Schema[R.Prim, R.SumTermId, R.ProductTermId, ?[_], ?], Encoder] =
-    new (Schema[R.Prim, R.SumTermId, R.ProductTermId, Encoder, ?] ~> Encoder) {
+  ): HAlgebra[RSchema, Encoder] =
+    new (RSchema[Encoder, ?] ~> Encoder) {
 
       val encloseInBraces         = (s: String) => s"{$s}"
       def makeField(name: String) = (s: String) => s""""$name":$s"""
 
-      def apply[A](schema: Schema[R.Prim, R.SumTermId, R.ProductTermId, Encoder, A]): Encoder[A] =
+      def apply[A](schema: RSchema[Encoder, A]): Encoder[A] =
         schema match {
 
           case PrimSchema(prim) => primNT(prim)

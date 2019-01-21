@@ -7,7 +7,7 @@ package tests
 import scalacheck._
 
 import testz._
-import org.scalacheck._, Prop._, rng.Seed
+import org.scalacheck._, Prop._, rng.Seed, Arbitrary._
 
 object GenModuleExamples {
 

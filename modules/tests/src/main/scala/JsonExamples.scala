@@ -9,7 +9,6 @@ import testz._
 object JsonExamples {
 
   import Json._
-  import Schema._
 
   def tests[T](harness: Harness[T]): T = {
     import harness._
