@@ -6,9 +6,7 @@ package generic
 
 trait GenericSchemaModule[R <: Realisation] extends SchemaModule[R] {
 
-  import Schema._
-
-  type Id[A] = A
+  import SchemaF._
 
   def covariantTargetFunctor[H[_]](
     primNT: R.Prim ~> H,
@@ -16,10 +14,10 @@ trait GenericSchemaModule[R <: Realisation] extends SchemaModule[R] {
     prodLabelNT: RProductTerm[H, ?] ~> H,
     sumLabelNT: RSumTerm[H, ?] ~> H,
     one: H[Unit]
-  )(implicit H: Alt[H]): HAlgebra[Schema[R.Prim, R.SumTermId, R.ProductTermId, ?[_], ?], H] =
-    new (Schema[R.Prim, R.SumTermId, R.ProductTermId, H, ?] ~> H) {
+  )(implicit H: Alt[H]): HAlgebra[RSchema, H] =
+    new (RSchema[H, ?] ~> H) {
 
-      def apply[A](schema: Schema[R.Prim, R.SumTermId, R.ProductTermId, H, A] @unchecked): H[A] =
+      def apply[A](schema: RSchema[H, A]): H[A] =
         schema match {
           case PrimSchema(prim)                                      => primNT(prim)
           case x: :+:[R.Prim, R.SumTermId, R.ProductTermId, H, a, b] => H.either2(x.left, x.right)
@@ -44,10 +42,10 @@ trait GenericSchemaModule[R <: Realisation] extends SchemaModule[R] {
     prodLabelNT: RProductTerm[H, ?] ~> H,
     sumLabelNT: RSumTerm[H, ?] ~> H,
     one: H[Unit]
-  )(implicit H: Decidable[H]): HAlgebra[Schema[R.Prim, R.SumTermId, R.ProductTermId, ?[_], ?], H] =
-    new (Schema[R.Prim, R.SumTermId, R.ProductTermId, H, ?] ~> H) {
+  )(implicit H: Decidable[H]): HAlgebra[RSchema, H] =
+    new (RSchema[H, ?] ~> H) {
 
-      def apply[A](schema: Schema[R.Prim, R.SumTermId, R.ProductTermId, H, A] @unchecked): H[A] =
+      def apply[A](schema: RSchema[H, A]): H[A] =
         schema match {
           case PrimSchema(prim) => primNT(prim)
           case x: :*:[H, a, b, R.Prim, R.SumTermId, R.ProductTermId] =>

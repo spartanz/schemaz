@@ -27,7 +27,6 @@ object ShowExamples {
 
   def tests[T](harness: Harness[T]): T = {
     import harness._
-    import Schema._
     import showModule._
 
     section("Generating Show Instances")(
