@@ -6,6 +6,8 @@ package scalacheck
 
 import org.scalacheck._
 
+import org.scalacheck._
+
 trait GenModule[R <: Realisation] extends SchemaModule[R] {
 
   import Schema._

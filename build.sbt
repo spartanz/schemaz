@@ -1,5 +1,7 @@
-val testzVersion   = "0.0.4"
-val monocleVersion = "1.5.0"
+val testzVersion      = "0.0.4"
+val monocleVersion    = "1.5.0"
+val derivingVersion   = "1.0.0"
+val scalacheckVersion = "1.14.0"
 
 inThisBuild(scalaVersion := "2.12.8")
 
@@ -10,6 +12,7 @@ lazy val root = project
   )
   .aggregate(
     core,
+    generic,
     scalacheck,
     tests
   )
@@ -24,12 +27,22 @@ lazy val core = project
     ).map(_.exclude("org.scalaz", "scalaz"))
   )
 
+lazy val generic = project
+  .in(file("modules/generic"))
+  .settings(
+    name := "scalaz-schema-generic",
+    libraryDependencies ++= Seq(
+      "org.scalaz" %% "scalaz-deriving" % derivingVersion
+    ).map(_.exclude("org.scalaz", "scalaz"))
+  )
+  .dependsOn(core)
+
 lazy val scalacheck = project
   .in(file("modules/scalacheck"))
   .settings(
     name := "scalaz-schema-scalacheck",
     libraryDependencies ++= Seq(
-      "org.scalacheck" %% "scalacheck" % "1.14.0"
+      "org.scalacheck" %% "scalacheck" % scalacheckVersion
     )
   )
   .dependsOn(core)
@@ -44,4 +57,4 @@ lazy val tests = project
       "org.scalaz" %% "testz-runner" % testzVersion
     )
   )
-  .dependsOn(core, scalacheck)
+  .dependsOn(core, scalacheck, generic)

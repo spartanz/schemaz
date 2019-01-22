@@ -43,8 +43,8 @@ object JsonExamples {
         val isoSerializer = personTupleSchema.to[Encoder]
 
         val testCases: List[(Person, String)] = List(
-          Person(null, None)                                          -> """{"name":null}""",
-          Person("Alfred", None)                                      -> """{"name":"Alfred"}""",
+          Person(null, None)                                          -> """{"name":"null", "role": null}""",
+          Person("Alfred", None)                                      -> """{"name":"Alfred", "role": null}""",
           Person("Alfred the Second", Some(User(true)))               -> """{"name":"Alfred the Second", "role": {"user": {"active":true}}}""",
           Person("Alfred the Third", Some(Admin(List("sys", "dev")))) -> """{"name":"Alfred the Third", "role": {"admin": {"rights": ["sys", "dev"]}}}"""
         )
@@ -75,10 +75,10 @@ object JsonExamples {
                 val isoSame = matchJsonStrings(isoJson, expected)
 
                 val res =
-                  if (same) Succeed
+                  if (same) fail
                   else Fail(Right(s"got $json expected $expected") :: fail.failures)
                 val isoRes =
-                  if (isoSame) Succeed
+                  if (isoSame) fail
                   else Fail(Right(s"got $isoJson expected $expected") :: fail.failures)
 
                 Result.combine(res, isoRes)
