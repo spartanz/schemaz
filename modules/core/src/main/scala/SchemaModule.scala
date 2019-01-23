@@ -219,8 +219,15 @@ trait SchemaModule[R <: Realisation] {
 
   type LabelledProduct[A] = LabelledProduct_[R.Prim, R.SumTermId, R.ProductTermId, A]
 
-  type RProductTerm[F[_], A] = ProductTerm[F, A, R.Prim, R.SumTermId, R.ProductTermId]
+  type ROne[F[_]]            = One[R.Prim, R.SumTermId, R.ProductTermId, F]
+  type RSum[F[_], A, B]      = :+:[R.Prim, R.SumTermId, R.ProductTermId, F, A, B]
+  type RProduct[F[_], A, B]  = :*:[F, A, B, R.Prim, R.SumTermId, R.ProductTermId]
   type RSumTerm[F[_], A]     = SumTerm[F, A, R.Prim, R.SumTermId, R.ProductTermId]
+  type RUnion[F[_], AE, A]   = Union[R.Prim, R.SumTermId, R.ProductTermId, F, A, AE]
+  type RProductTerm[F[_], A] = ProductTerm[F, A, R.Prim, R.SumTermId, R.ProductTermId]
+  type RRecord[F[_], An, A]  = Record[R.Prim, R.SumTermId, R.ProductTermId, F, A, An]
+  type RSeq[F[_], A]         = SeqSchema[F, A, R.Prim, R.SumTermId, R.ProductTermId]
+  type RIso[F[_], A, B]      = IsoSchema[R.Prim, R.SumTermId, R.ProductTermId, F, A, B]
 
   ////////////////
   // Public API
