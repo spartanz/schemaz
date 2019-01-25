@@ -9,7 +9,7 @@ import generic.GenericSchemaModule
 
 trait GenericGenModule[R <: Realisation] extends GenericSchemaModule[R] {
 
-  import Schema._
+  import SchemaF._
 
   implicit val genApplicativeInstance: Applicative[Gen] = new Applicative[Gen] {
     override def ap[T, U](fa: => Gen[T])(f: => Gen[T => U]): Gen[U] =
@@ -32,7 +32,7 @@ trait GenericGenModule[R <: Realisation] extends GenericSchemaModule[R] {
 
   implicit final def algebra(
     implicit primNT: R.Prim ~> Gen
-  ): HAlgebra[Schema[R.Prim, R.SumTermId, R.ProductTermId, ?[_], ?], Gen] =
+  ): HAlgebra[RSchema, Gen] =
     covariantTargetFunctor[Gen](
       primNT,
       λ[Gen ~> λ[X => Gen[List[X]]]](x => Gen.listOf(x)),

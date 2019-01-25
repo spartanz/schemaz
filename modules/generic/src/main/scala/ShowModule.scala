@@ -5,7 +5,7 @@ package schema
 package generic
 
 trait ShowModule[R <: Realisation] extends GenericSchemaModule[R] {
-  import Schema._
+  import SchemaF._
 
   implicit val showDecidableInstance: Decidable[Show] = new Decidable[Show] {
     override def choose2[Z, A1, A2](a1: => Show[A1], a2: => Show[A2])(f: Z => A1 \/ A2): Show[Z] =
@@ -13,19 +13,19 @@ trait ShowModule[R <: Realisation] extends GenericSchemaModule[R] {
 
     override def conquer[A]: Show[A] = Show.shows[A](_ => "")
 
-    override def divide[A, B, C](fa: Show[A], fb: Show[B])(f: C => (A, B)): Show[C] = Show.shows[C](
+    override def divide[A, B, C](fa: Show[A], fb: Show[B])(f: C => (A, B)): Show[C] = Show.show[C](
       c => {
         val tpl = f(c)
 
         val lhs = fa.show(tpl._1)
         val rhs = fb.show(tpl._2)
 
-        (lhs, rhs) match {
-          case (s1, s2) if s1.isEmpty && s2.isEmpty  => ""
-          case (s1, s2) if s1.isEmpty && !s2.isEmpty => Show[Cord].shows(s2)
-          case (s1, s2) if !s1.isEmpty && s2.isEmpty => Show[Cord].shows(s1)
-          case (s1, s2) if !s1.isEmpty && !s2.isEmpty =>
-            s"""(${Show[Cord].shows(s1)}, ${Show[Cord].shows(s2)})"""
+        (lhs.isEmpty, rhs.isEmpty) match {
+          case (true, true)  => Cord()
+          case (true, false) => rhs
+          case (false, true) => lhs
+          case (false, false) =>
+            Cord("(") ++ lhs ++ Cord(", ") ++ rhs ++ Cord(")")
         }
       }
     )
@@ -35,7 +35,7 @@ trait ShowModule[R <: Realisation] extends GenericSchemaModule[R] {
     primNT: R.Prim ~> Show,
     prodLabelToString: R.ProductTermId => String,
     sumLabelToString: R.SumTermId => String
-  ): HAlgebra[Schema[R.Prim, R.SumTermId, R.ProductTermId, ?[_], ?], Show] =
+  ): HAlgebra[RSchema, Show] =
     contravariantTargetFunctor(
       primNT,
       λ[Show ~> λ[X => Show[List[X]]]](

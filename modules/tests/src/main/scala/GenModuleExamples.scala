@@ -7,30 +7,29 @@ package tests
 import scalacheck._
 
 import testz._
-import org.scalacheck._, Prop._, rng.Seed
+import org.scalacheck._, Prop._, rng.Seed, Arbitrary._
+
+trait PrimToGen {
+  implicit val primToGenNT = new (JsonSchema.Prim ~> Gen) {
+    override def apply[A](prim: JsonSchema.Prim[A]): Gen[A] = prim match {
+      case JsonSchema.JsonString => arbitrary[String]
+      case JsonSchema.JsonNumber => arbitrary[BigDecimal]
+      case JsonSchema.JsonBool   => arbitrary[Boolean]
+      case JsonSchema.JsonNull   => arbitrary[Null]
+    }
+  }
+
+}
 
 object GenModuleExamples {
 
   def tests[T](harness: Harness[T]): T = {
     import harness._
-    import Schema._
-
-    import org.scalacheck.Gen
-    import org.scalacheck.Arbitrary._
 
     section("Generating Gens")(
       test("Convert Schema to Gen") { () =>
-        val module = new TestModule with GenModule[JsonSchema.type] {}
+        val module = new TestModule with GenModule[JsonSchema.type] with PrimToGen {}
         import module._
-
-        implicit val primToGenNT = new (JsonSchema.Prim ~> Gen) {
-          override def apply[A](prim: JsonSchema.Prim[A]): Gen[A] = prim match {
-            case JsonSchema.JsonString => arbitrary[String]
-            case JsonSchema.JsonNumber => arbitrary[BigDecimal]
-            case JsonSchema.JsonBool   => arbitrary[Boolean]
-            case JsonSchema.JsonNull   => arbitrary[Null]
-          }
-        }
 
         val personGen: Gen[PersonTuple] = personTupleSchema.to[Gen]
 
@@ -59,17 +58,8 @@ object GenModuleExamples {
         if (result.success) Succeed else Fail(List(Right(result.status.toString)))
       },
       test("Convert Schema to Gen with Generic Module") { () =>
-        val module = new TestModule with GenericGenModule[JsonSchema.type] {}
+        val module = new TestModule with GenericGenModule[JsonSchema.type] with PrimToGen {}
         import module._
-
-        implicit val primToGenNT = new (JsonSchema.Prim ~> Gen) {
-          override def apply[A](prim: JsonSchema.Prim[A]): Gen[A] = prim match {
-            case JsonSchema.JsonString => arbitrary[String]
-            case JsonSchema.JsonNumber => arbitrary[BigDecimal]
-            case JsonSchema.JsonBool   => arbitrary[Boolean]
-            case JsonSchema.JsonNull   => arbitrary[Null]
-          }
-        }
 
         val personGen: Gen[PersonTuple] = personTupleSchema.to[Gen]
 
