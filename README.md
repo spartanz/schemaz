@@ -26,7 +26,10 @@ Scalaz Schema defines a generic representation of algebraic data structures and 
  xenomorph | ✓ | ✓ | ? | 𐄂 | 𐄂
  shapeless * | ✓ | ✓ | 𐄂 | ✓ | 𐄂
  
+ 
  \*: shapeless provides only the way to abstract over the structure of data, but several libraries build upon shapeless to provide the feature listed in the table.
+ 
+Skeumorph is also a possible competitor, however it is focused on providing translation between different formats (Avro, Protobuf and Mu). This is achieved by using a central Schema Representation which can losslessly translate to each of the previously mentioned formats.
  
 ## Background
 
