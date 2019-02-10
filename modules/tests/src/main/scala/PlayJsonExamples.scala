@@ -50,7 +50,6 @@ object PlayJsonExamples {
 
   def tests[T](harness: Harness[T]): T = {
     import harness._
-    import Schema._
     import module._
     import JsonSchema._
 

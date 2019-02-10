@@ -9,9 +9,10 @@ import generic._
 
 object ShowExamples {
 
-  import JsonSchema._
-
   val showModule = new TestModule with ShowModule[JsonSchema.type] {
+
+    import SchemaF._
+    import JsonSchema._
 
     val primToShowNT = new (JsonSchema.Prim ~> Show) {
 
@@ -20,8 +21,13 @@ object ShowExamples {
           case JsonNumber => Show.showFromToString[BigDecimal]
           case JsonBool   => Show.showFromToString[Boolean]
           case JsonString => Show.shows[String](s => s""""$s"""")
-          case JsonNull   => Show.shows[Null](_ => "null")
+          case JsonNull   => Show.shows[Unit](_ => "null")
         }
+    }
+
+    implicit val interpreter = new Interpreter[R.Prim, R.SumTermId, R.ProductTermId, Show] {
+      private val alg               = showAlgebra(primToShowNT, identity[String], identity[String])
+      def interpret: Schema ~> Show = cataNT(alg)
     }
   }
 
@@ -32,8 +38,6 @@ object ShowExamples {
     section("Generating Show Instances")(
       test("commons Show Instance") { () =>
         {
-
-          implicit val alg = showAlgebra(primToShowNT, identity[String], identity[String])
 
           val testCases: List[(Person, String)] = List(
             Person(null, None)                                          -> """(name = ("null"), role = (()))""",

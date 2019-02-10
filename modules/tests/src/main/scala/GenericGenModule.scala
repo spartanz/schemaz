@@ -32,8 +32,8 @@ trait GenericGenModule[R <: Realisation] extends GenericSchemaModule[R] {
 
   implicit final def algebra(
     implicit primNT: R.Prim ~> Gen
-  ): HAlgebra[RSchema, Gen] =
-    covariantTargetFunctor[Gen](
+  ): RInterpreter[Gen] = new Interpreter[R.Prim, R.SumTermId, R.ProductTermId, Gen] {
+    private val alg = covariantTargetFunctor[Gen](
       primNT,
       λ[Gen ~> λ[X => Gen[List[X]]]](x => Gen.listOf(x)),
       λ[RProductTerm[Gen, ?] ~> Gen](gen => gen.schema),
@@ -41,4 +41,6 @@ trait GenericGenModule[R <: Realisation] extends GenericSchemaModule[R] {
       Gen.const(())
     )
 
+    def interpret: Schema ~> Gen = cataNT(alg)
+  }
 }

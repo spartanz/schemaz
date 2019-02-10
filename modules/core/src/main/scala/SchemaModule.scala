@@ -161,23 +161,23 @@ trait Interpreter[Prim[_], SumTermId, ProductTermId, F[_]] {
    * A natural transformation that will transform a schema for any type `A`
    * into an `F[A]`.
    */
-  def interpret: Schema.FSchema[Prim, SumTermId, ProductTermId, ?] ~> F
+  def interpret: SchemaF.FSchema[Prim, SumTermId, ProductTermId, ?] ~> F
 }
 
 object SchemaF {
 
   implicit def schemaHFunctor[Prim[_], SumTermId, ProductTermId] =
-    new HFunctor[Schema[Prim, SumTermId, ProductTermId, ?[_], ?]] {
+    new HFunctor[SchemaF[Prim, SumTermId, ProductTermId, ?[_], ?]] {
 
       def hmap[F[_], G[_]](nt: F ~> G) =
-        new (Schema[Prim, SumTermId, ProductTermId, F, ?] ~> Schema[
+        new (SchemaF[Prim, SumTermId, ProductTermId, F, ?] ~> SchemaF[
           Prim,
           SumTermId,
           ProductTermId,
           G,
           ?
         ]) {
-          def apply[A](fa: Schema[Prim, SumTermId, ProductTermId, F, A]) = fa.hmap(nt)
+          def apply[A](fa: SchemaF[Prim, SumTermId, ProductTermId, F, A]) = fa.hmap(nt)
         }
     }
 
@@ -263,6 +263,8 @@ object SchemaF {
 trait SchemaModule[R <: Realisation] {
 
   val R: R
+
+  import SchemaF._
 
   type RInterpreter[F[_]] = Interpreter[R.Prim, R.SumTermId, R.ProductTermId, F]
 

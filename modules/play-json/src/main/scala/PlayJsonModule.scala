@@ -11,7 +11,7 @@ import _root_.play.api.libs.functional.syntax._
 
 trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
 
-  import Schema._
+  import SchemaF._
 
   type LabelledSchema[A] = (Boolean, FSchema[R.Prim, R.SumTermId, R.ProductTermId, A])
 

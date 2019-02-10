@@ -15,7 +15,7 @@ trait PrimToGen {
       case JsonSchema.JsonString => arbitrary[String]
       case JsonSchema.JsonNumber => arbitrary[BigDecimal]
       case JsonSchema.JsonBool   => arbitrary[Boolean]
-      case JsonSchema.JsonNull   => arbitrary[Null]
+      case JsonSchema.JsonNull   => arbitrary[Unit]
     }
   }
 
