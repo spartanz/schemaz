@@ -4,6 +4,8 @@ package schema
 
 package play.json
 
+import recursion._
+
 import Scalaz._
 import Liskov._
 import _root_.play.api.libs.json._
