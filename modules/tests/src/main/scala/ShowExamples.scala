@@ -11,7 +11,6 @@ object ShowExamples {
 
   val showModule = new TestModule with ShowModule[JsonSchema.type] {
 
-    import SchemaF._
     import JsonSchema._
 
     val primToShowNT = new (JsonSchema.Prim ~> Show) {
@@ -25,10 +24,9 @@ object ShowExamples {
         }
     }
 
-    implicit val interpreter = new Interpreter[R.Prim, R.SumTermId, R.ProductTermId, Show] {
-      private val alg               = showAlgebra(primToShowNT, identity[String], identity[String])
-      def interpret: Schema ~> Show = cataNT(alg)
-    }
+    implicit val interpreter =
+      Interpreter.cata(showAlgebra(primToShowNT, identity[String], identity[String]))
+
   }
 
   def tests[T](harness: Harness[T]): T = {
