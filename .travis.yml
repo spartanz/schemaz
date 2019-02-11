@@ -20,7 +20,7 @@ install:
 stages:
 - name: test
 - name: publishMicrosite
-  if: tag IS present
+  if: (branch = prototyping AND type = push) OR tag IS present
 
 jobs:
   include:
@@ -34,6 +34,11 @@ jobs:
       name: "Test"
       script:
       - sbt ++$TRAVIS_SCALA_VERSION tests/run
+    - &makeMicrosite:
+      stage: test
+      name: "Make microsite"
+      script:
+      - sbt ++$TRAVIS_SCALA_VERSION microsite/makeMicrosite
     - &publishSite
       stage: publishMicrosite
       name: "Publish microsite"
