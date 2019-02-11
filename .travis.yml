@@ -5,7 +5,8 @@ scala:
 jdk:
 - oraclejdk8
 before_install:
-- openssl aes-256-cbc -K $encrypted_3e0e738695ac_key -iv $encrypted_3e0e738695ac_iv -in travis-deploy-key.enc -out travis-deploy-key -d
+- openssl aes-256-cbc -K $encrypted_3e0e738695ac_key -iv $encrypted_3e0e738695ac_iv
+  -in travis-deploy-key.enc -out travis-deploy-key -d
 - chmod 600 travis-deploy-key
 - cp travis-deploy-key ~/.ssh/id_rsa
 - export PATH=${PATH}:./vendor/bundle
@@ -17,4 +18,5 @@ install:
 script:
 - sbt ++$TRAVIS_SCALA_VERSION scalafmtCheck test:scalafmtCheck scalafmtSbtCheck tests/run
 after_success:
-- if [ "$TRAVIS_BRANCH" = "prototyping" -a "$TRAVIS_PULL_REQUEST" = "false" ]; then bash publishMicrosite.sh; fi
+- if [ "$TRAVIS_BRANCH" = "prototyping" -a "$TRAVIS_PULL_REQUEST" = "false" ]; then
+  bash publishMicrosite.sh; fi
