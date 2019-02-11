@@ -9,8 +9,6 @@ import generic.GenericSchemaModule
 
 trait GenericGenModule[R <: Realisation] extends GenericSchemaModule[R] {
 
-  import SchemaF._
-
   implicit val genApplicativeInstance: Applicative[Gen] = new Applicative[Gen] {
     override def ap[T, U](fa: => Gen[T])(f: => Gen[T => U]): Gen[U] =
       fa.flatMap(a => f.map(_(a)))
@@ -30,15 +28,15 @@ trait GenericGenModule[R <: Realisation] extends GenericSchemaModule[R] {
       } yield x
   }
 
-  implicit final def algebra(
+  implicit final def genericGenInterpreter(
     implicit primNT: R.Prim ~> Gen
-  ): HAlgebra[RSchema, Gen] =
-    covariantTargetFunctor[Gen](
+  ): RInterpreter[Gen] = Interpreter.cata(
+    covariantTargetFunctor(
       primNT,
       λ[Gen ~> λ[X => Gen[List[X]]]](x => Gen.listOf(x)),
       λ[RProductTerm[Gen, ?] ~> Gen](gen => gen.schema),
       λ[RSumTerm[Gen, ?] ~> Gen](gen => gen.schema),
       Gen.const(())
     )
-
+  )
 }

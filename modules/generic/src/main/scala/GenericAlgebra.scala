@@ -4,9 +4,9 @@ package schema
 
 package generic
 
-trait GenericSchemaModule[R <: Realisation] extends SchemaModule[R] {
+import recursion._
 
-  import SchemaF._
+trait GenericSchemaModule[R <: Realisation] extends SchemaModule[R] {
 
   def covariantTargetFunctor[H[_]](
     primNT: R.Prim ~> H,

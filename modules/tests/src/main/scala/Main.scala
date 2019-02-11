@@ -45,7 +45,8 @@ object Main {
       ("Examples", SchemaModuleExamples.tests(harness)),
       ("JSON", JsonExamples.tests(harness)),
       ("Scalacheck generators", GenModuleExamples.tests(harness)),
-      ("Generic Show interpreter", ShowExamples.tests(harness))
+      ("Generic Show interpreter", ShowExamples.tests(harness)),
+      ("Play-JSON codecs", PlayJsonExamples.tests(harness))
     )
 
   def main(args: Array[String]): Unit = {

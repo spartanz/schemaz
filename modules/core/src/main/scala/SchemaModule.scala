@@ -2,9 +2,9 @@ package scalaz
 
 package schema
 
-import monocle.Iso
+import recursion._
 
-final case class Fix[F[_[_], _], A](unFix: F[Fix[F, ?], A])
+import monocle.Iso
 
 trait Realisation {
   type Prim[A]
@@ -133,7 +133,61 @@ final case class IsoSchema[Prim[_], SumTermId, ProductTermId, F[_], A0, A](
     IsoSchema(nt(base), iso)
 }
 
+/**
+ * An interpreter able to derive a `F[A]` from a schema for `A` (for any `A`).
+ * Such interpreters will usually be implemented using a recursion scheme like
+ * 'cataNT`or hyloNT`.
+ */
+trait Interpreter[F[_], G[_]] { self =>
+
+  /**
+   * A natural transformation that will transform a schema for any type `A`
+   * into an `F[A]`.
+   */
+  def interpret: F ~> G
+
+  def compose[H[_]](nt: H ~> F) = self match {
+    case i: ComposedInterpreter[h, G, F] => ComposedInterpreter(i.underlying, i.nt.compose(nt))
+    case x                               => ComposedInterpreter(x, nt)
+  }
+}
+
+final case class ComposedInterpreter[F[_], G[_], H[_]](underlying: Interpreter[F, G], nt: H ~> F)
+    extends Interpreter[H, G] {
+  final override val interpret = underlying.interpret.compose(nt)
+}
+
+class CataInterpreter[S[_[_], _], F[_]](
+  algebra: HAlgebra[S, F]
+)(implicit ev: HFunctor[S])
+    extends Interpreter[Fix[S, ?], F] {
+  final override val interpret = cataNT(algebra)
+}
+
+class HyloInterpreter[S[_[_], _], F[_], G[_]](
+  coalgebra: HCoalgebra[S, G],
+  algebra: HAlgebra[S, F]
+)(implicit ev: HFunctor[S])
+    extends Interpreter[G, F] {
+  final override val interpret = hyloNT(coalgebra, algebra)
+}
+
 object SchemaF {
+
+  implicit def schemaHFunctor[Prim[_], SumTermId, ProductTermId] =
+    new HFunctor[SchemaF[Prim, SumTermId, ProductTermId, ?[_], ?]] {
+
+      def hmap[F[_], G[_]](nt: F ~> G) =
+        new (SchemaF[Prim, SumTermId, ProductTermId, F, ?] ~> SchemaF[
+          Prim,
+          SumTermId,
+          ProductTermId,
+          G,
+          ?
+        ]) {
+          def apply[A](fa: SchemaF[Prim, SumTermId, ProductTermId, F, A]) = fa.hmap(nt)
+        }
+    }
 
   type FSchema[Prim[_], SumTermId, ProductTermId, A] =
     Fix[SchemaF[Prim, SumTermId, ProductTermId, ?[_], ?], A]
@@ -185,24 +239,6 @@ object SchemaF {
     def toSchema = Fix(new :*:(l.toSchema, r.toSchema))
 
   }
-
-  // Schema syntax
-
-  ///////////////////////
-  // Schema operations
-  ///////////////////////
-
-  type HAlgebra[F[_[_], _], G[_]] = F[G, ?] ~> G
-
-  def cataNT[Prim[_], SumTermId, ProductTermId, F[_]](
-    alg: HAlgebra[SchemaF[Prim, SumTermId, ProductTermId, ?[_], ?], F]
-  ): (FSchema[Prim, SumTermId, ProductTermId, ?] ~> F) =
-    new (FSchema[Prim, SumTermId, ProductTermId, ?] ~> F) { self =>
-
-      def apply[A](f: FSchema[Prim, SumTermId, ProductTermId, A]): F[A] =
-        alg.apply[A](f.unFix.hmap[F](self))
-    }
-
 }
 
 trait SchemaModule[R <: Realisation] {
@@ -210,6 +246,8 @@ trait SchemaModule[R <: Realisation] {
   val R: R
 
   import SchemaF._
+
+  type RInterpreter[F[_]] = Interpreter[Schema, F]
 
   type RSchema[F[_], A] = SchemaF[R.Prim, R.SumTermId, R.ProductTermId, F, A]
 
@@ -229,6 +267,17 @@ trait SchemaModule[R <: Realisation] {
   type RSeq[F[_], A]         = SeqSchema[F, A, R.Prim, R.SumTermId, R.ProductTermId]
   type RIso[F[_], A, B]      = IsoSchema[R.Prim, R.SumTermId, R.ProductTermId, F, A, B]
 
+  object Interpreter {
+
+    def cata[S[_[_], _], F[_]](alg: HAlgebra[S, F])(implicit ev: HFunctor[S]) =
+      new CataInterpreter[S, F](alg)
+
+    def hylo[S[_[_], _], F[_], G[_]](coalg: HCoalgebra[S, G], alg: HAlgebra[S, F])(
+      implicit ev: HFunctor[S]
+    ) = new HyloInterpreter(coalg, alg)
+
+  }
+
   ////////////////
   // Public API
   ////////////////
@@ -243,7 +292,7 @@ trait SchemaModule[R <: Realisation] {
 
     def -+>: (id: R.SumTermId): LabelledSum[A] = LabelledSum1(id, schema)
 
-    def to[F[_]](implicit algebra: HAlgebra[RSchema, F]): F[A] = cataNT(algebra)(schema)
+    def to[F[_]](implicit interpreter: RInterpreter[F]): F[A] = interpreter.interpret(schema)
 
     def imap[B](_iso: Iso[A, B]): Schema[B] = schema.unFix match {
       case IsoSchema(base, iso) => Fix(IsoSchema(base, iso.composeIso(_iso)))

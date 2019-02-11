@@ -47,6 +47,16 @@ lazy val scalacheck = project
   )
   .dependsOn(core)
 
+lazy val playJson = project
+  .in(file("modules/play-json"))
+  .settings(
+    name := "scalaz-schema-play-json",
+    libraryDependencies ++= Seq(
+      "com.typesafe.play" %% "play-json" % "2.6.10"
+    )
+  )
+  .dependsOn(core)
+
 lazy val tests = project
   .in(file("modules/tests"))
   .settings(
@@ -57,4 +67,4 @@ lazy val tests = project
       "org.scalaz" %% "testz-runner" % testzVersion
     )
   )
-  .dependsOn(core, scalacheck, generic)
+  .dependsOn(core, scalacheck, generic, playJson)
