@@ -1,25 +1,50 @@
 language: scala
 sudo: false
+
 scala:
 - 2.12.6
+
 jdk:
 - oraclejdk8
+
 before_install:
-- if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then openssl aes-256-cbc -k "$travis_key_password" -d -md sha256 -a
-  -in travis-deploy-key.enc -out travis-deploy-key -d; fi
-- if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then chmod 400 travis-deploy-key; fi
-- if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then cp travis-deploy-key ~/.ssh/id_rsa; fi
+- "[ -z \"${travis_key_password}\" ] || openssl aes-256-cbc -k $travis_key_password -d -md sha256 -a -in travis-deploy-key.enc -out travis-deploy-key -d"
 - export PATH=${PATH}:./vendor/bundle
+
 install:
 - rvm use 2.4.4 --install --fuzzy
 - gem update --system
 - gem install sass
 - gem install jekyll -v 3.8.3
-script:
-- sbt ++$TRAVIS_SCALA_VERSION scalafmtCheck test:scalafmtCheck scalafmtSbtCheck tests/run
-after_success:
-- if [ "$TRAVIS_BRANCH" = "prototyping" -a "$TRAVIS_PULL_REQUEST" = "false" ]; then
-  bash publishMicrosite.sh; fi
+
+stages:
+- name: test
+- name: publishMicrosite
+  if: tag IS present
+
+jobs:
+  include:
+    - &lint:
+      stage: test
+      name: "Lint"
+      script: 
+      - sbt ++$TRAVIS_SCALA_VERSION scalafmtCheck scalafmtSbtCheck 
+    - &test:
+      stage: test
+      name: "Test"
+      script:
+      - sbt ++$TRAVIS_SCALA_VERSION tests/run
+    - &publishSite
+      stage: publishMicrosite
+      name: "Publish microsite"
+      before_script:
+      - cp ./travis-deploy-key ~/.ssh/id_rsa
+      - chmod 600 ~/.ssh/id_rsa
+      script:
+      - git config --global user.email "valentin.kasas@gmail.com"
+      - git config --global user.name "Valentin Kasas"
+      - git config --global push.default simple
+      - sbt ++$TRAVIS_SCALA_VERSION microsite/publishMicrosite
 
 cache:
   directories:
