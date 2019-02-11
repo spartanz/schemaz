@@ -20,6 +20,19 @@ script:
 after_success:
 - if [ "$TRAVIS_BRANCH" = "prototyping" -a "$TRAVIS_PULL_REQUEST" = "false" ]; then
   bash publishMicrosite.sh; fi
+
+cache:
+  directories:
+  - $HOME/.sbt/1.0/dependency
+  - $HOME/.sbt/boot/scala*
+  - $HOME/.sbt/launchers
+  - $HOME/.rvm
+
+before_cache:
+- find $HOME/.sbt -name "*.lock" -type f -delete
+- find $HOME/.ivy2/cache -name "ivydata-*.properties" -type f -delete
+- rm -rf $HOME/.ivy2/local
+
 env:
   matrix:
     secure: Qc0FvtfeOLdzYBilWM7KpaTKOJWC3hjmMvmqrUZS7ssELoaSIi/bvPDTK1Ecgk5M7sakl/jg2Nw6DNLZt58LnBjRVuwm9Qvht6oJDiRzIBIjOq/tWst9WTlC9SRVIHyoKdZHc45TxpxC0jRqc+evp437B7i8AxUOZfJdBI4d4X3uphaeIa8cq1UlUYt/2wTZ+QBSK5ZxPfqb8K/++00WYSLqET+F8Dffj9OLTtu7d8Qj4fFGW/6uSF88Botb2RUfr8RrqpyiUYWkFduyXMTXTx013Z61qAbxwpRUx8GRP+VsC8nGUjmtEqc1oJ+14uGZknWV2rPRIYTRvCSVWXrD4QtJSyPLsEiJZMbhBkSR1iCCieqMCsN+t3LJB7Qt9s/TuiqSQNcg6cwnpxE9hzou/wg3eLGco3RUsDDlZFHi5bdGMGP0T9wARaNoGpbZZnvWvcb0QRDGYZOutHisUDPABo8is5nQwT9DKvGQMRl2zOlbT3EuBfqlQ5pYU6ls0CTzwtLY0RCPOx9U2pXLBO9shqFRrZ7srWDUC4t7rTFLwP5tmmHA8fIULVAXAEgMnPsvcjW0KcKw3/SYCOEu8wUxF0mEahfhX/+vjw+XcEv+e/3gfG5St4qRPuMOBFVGnwQHe8w/t5kyZdSyyOpRz5EBoVOLL4bsIxpcSEKDl0Fa/0k=
