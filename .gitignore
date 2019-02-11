@@ -449,4 +449,4 @@ project/plugins/project/
 
 
 # Travis keys
-travis-deploy-key*
+travis-deploy-key
