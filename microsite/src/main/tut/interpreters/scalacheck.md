@@ -19,13 +19,12 @@ import monocle.Iso
 To use it, you'll need to define a module mixing the `scalaz.schema.scalacheck.GenModule` trait and to define an implicit `Prim ~> Gen` natural transformation from your specific set of primitives to `Gen`.
 
 ```tut:silent
-object ExampleModule extends scalacheck.GenModule {
-  type Prim[A]       = JsonSchema.Prim[A]
-  type SumTermId     = String
-  type ProductTermId = String
+object ExampleModule extends scalacheck.GenModule[JsonSchema.type] {
+  
+  val R = JsonSchema
 
-  implicit val primToGen = new (Prim ~> Gen) {
-    def apply[A](prim: Prim[A]): Gen[A] = prim match {
+  implicit val primToGen = new (R.Prim ~> Gen) {
+    def apply[A](prim: R.Prim[A]): Gen[A] = prim match {
       case JsonSchema.JsonBool   => arbitrary[Boolean]
       case JsonSchema.JsonNumber => arbitrary[BigDecimal]
       case JsonSchema.JsonString => Gen.alphaNumStr
