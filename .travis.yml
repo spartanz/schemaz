@@ -11,10 +11,10 @@ before_install:
 - cp travis-deploy-key ~/.ssh/id_rsa
 - export PATH=${PATH}:./vendor/bundle
 install:
-- rvm use 2.2.8 --install --fuzzy
+- rvm use 2.4.4 --install --fuzzy
 - gem update --system
 - gem install sass
-- gem install jekyll -v 3.2.1
+- gem install jekyll -v 3.8.3
 script:
 - sbt ++$TRAVIS_SCALA_VERSION scalafmtCheck test:scalafmtCheck scalafmtSbtCheck tests/run
 after_success:
