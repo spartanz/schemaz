@@ -68,3 +68,45 @@ lazy val tests = project
     )
   )
   .dependsOn(core, scalacheck, generic, playJson)
+
+lazy val microsite = project
+  .in(file("microsite"))
+  .dependsOn(core, scalacheck)
+  .enablePlugins(MicrositesPlugin)
+  .settings(
+    scalacOptions -= "-Yno-imports",
+    scalacOptions ~= { _.filterNot(_.startsWith("-Ywarn")) },
+    scalacOptions ~= { _.filterNot(_.startsWith("-Xlint")) },
+    skip in publish := true,
+    libraryDependencies ++= Seq(
+      "com.github.ghik" %% "silencer-lib" % "1.0",
+      "commons-io"      % "commons-io"    % "2.6"
+    ),
+    micrositeFooterText := Some(
+      """
+        |<p>&copy; 2019 <a href="https://github.com/scalaz/scalaz-schema">Scalaz-schema Maintainers</a></p>
+        |""".stripMargin
+    ),
+    micrositeName := "Scalaz-Schema",
+    micrositeDescription := "Abstract over data structures in a principled, purely functional way",
+    micrositeAuthor := "Scalaz-schema contributors",
+    micrositeOrganizationHomepage := "https://github.com/scalaz/scalaz-schema",
+    micrositeGitterChannelUrl := "scalaz/scalaz-schema",
+    micrositeGitHostingUrl := "https://github.com/scalaz/scalaz-schema",
+    micrositeGithubOwner := "scalaz",
+    micrositeGithubRepo := "scalaz-schema",
+    micrositeFavicons := Seq(microsites.MicrositeFavicon("favicon.png", "512x512")),
+    micrositeDocumentationUrl := "docs/schemas.html",
+    micrositeDocumentationLabelDescription := "Documentation",
+    micrositeBaseUrl := "/scalaz-schema",
+    micrositePalette := Map(
+      "brand-primary"   -> "#990000",
+      "brand-secondary" -> "#000000",
+      "brand-tertiary"  -> "#990000",
+      "gray-dark"       -> "#453E46",
+      "gray"            -> "#837F84",
+      "gray-light"      -> "#E3E2E3",
+      "gray-lighter"    -> "#F4F3F4",
+      "white-color"     -> "#FFFFFF"
+    )
+  )
