@@ -28,7 +28,7 @@ trait GenericGenModule[R <: Realisation] extends GenericSchemaModule[R] {
       } yield x
   }
 
-  implicit final def algebra(
+  implicit final def genericGenInterpreter(
     implicit primNT: R.Prim ~> Gen
   ): RInterpreter[Gen] = Interpreter.cata(
     covariantTargetFunctor(

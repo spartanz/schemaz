@@ -14,7 +14,7 @@ object Json {
 trait JsonModule[R <: Realisation] extends SchemaModule[R] {
   import Json._
 
-  implicit final def algebra(
+  implicit final def encoderInterpreter(
     implicit primNT: R.Prim ~> Encoder,
     fieldLabel: R.ProductTermId <~< String,
     branchLabel: R.SumTermId <~< String

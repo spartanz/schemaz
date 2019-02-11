@@ -74,7 +74,7 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
         (false, fSchema)
     }
 
-  implicit final def reads(
+  implicit final def readsInterpreter(
     implicit primNT: R.Prim ~> Reads,
     branchLabel: R.SumTermId <~< String,
     fieldLabel: R.ProductTermId <~< String
@@ -131,7 +131,7 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
       )
       .compose(labellingSeed)
 
-  implicit final def writes(
+  implicit final def writesInterpreter(
     implicit primNT: R.Prim ~> Writes,
     branchLabel: R.SumTermId <~< String,
     fieldLabel: R.ProductTermId <~< String

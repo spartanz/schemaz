@@ -8,7 +8,7 @@ import org.scalacheck._
 
 trait GenModule[R <: Realisation] extends SchemaModule[R] {
 
-  implicit final def algebra(
+  implicit final def genInterpreter(
     implicit primNT: R.Prim ~> Gen
   ): RInterpreter[Gen] =
     Interpreter.cata(new (RSchema[Gen, ?] ~> Gen) {
