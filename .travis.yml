@@ -5,10 +5,10 @@ scala:
 jdk:
 - oraclejdk8
 before_install:
-- openssl aes-256-cbc -k "$travis_key_password" -d -md sha256 -a
-  -in travis-deploy-key.enc -out travis-deploy-key -d
-- chmod 400 travis-deploy-key
-- cp travis-deploy-key ~/.ssh/id_rsa
+- if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then openssl aes-256-cbc -k "$travis_key_password" -d -md sha256 -a
+  -in travis-deploy-key.enc -out travis-deploy-key -d; fi
+- if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then chmod 400 travis-deploy-key; fi
+- if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then cp travis-deploy-key ~/.ssh/id_rsa; fi
 - export PATH=${PATH}:./vendor/bundle
 install:
 - rvm use 2.4.4 --install --fuzzy
