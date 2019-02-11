@@ -47,7 +47,7 @@ import scalaz._, schema._
 ```
 
 ```tut:silent
-object JsonModule extends SchemaModule {
+object JsonRealisation extends Realisation {
   type Prim[A] = JsonPrim[A]
   type SumTermId = String
   type ProductTermId = String
@@ -58,6 +58,10 @@ object JsonModule extends SchemaModule {
   case object JsonString extends JsonPrim[String]
   case object JsonNull extends JsonPrim[Unit]
 }
+
+object JsonModule extends SchemaModule[JsonRealisation.type] {
+  val R = JsonRealisation
+}
 ```
 
 We will later use this module to build schemas.
@@ -66,6 +70,7 @@ We will later use this module to build schemas.
 
 ```tut:silent
 import JsonModule._
+import JsonRealisation._
 ```
 
 Our newly created module provides combinators to build schemas. 
