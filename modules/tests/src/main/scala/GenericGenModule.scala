@@ -36,6 +36,12 @@ trait GenericGenModule[R <: Realisation] extends GenericSchemaModule[R] {
       λ[Gen ~> λ[X => Gen[List[X]]]](x => Gen.listOf(x)),
       λ[RProductTerm[Gen, ?] ~> Gen](gen => gen.schema),
       λ[RSumTerm[Gen, ?] ~> Gen](gen => gen.schema),
+      λ[λ[X => () => Gen[X]] ~> Gen](
+        thunk =>
+          Gen.delay {
+            thunk()
+          }
+      ),
       Gen.const(())
     )
   )

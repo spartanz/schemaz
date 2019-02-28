@@ -29,6 +29,9 @@ object ShowExamples {
 
   }
 
+  def comp(s1: String, s2: String): Boolean =
+    s1.replaceAll("\\s+", "").trim.toLowerCase() == s2.replaceAll("\\s+", "").trim.toLowerCase()
+
   def tests[T](harness: Harness[T]): T = {
     import harness._
     import showModule._
@@ -41,7 +44,7 @@ object ShowExamples {
           val testCases: List[(Person, String)] = List(
             Person(null, None)                                          -> """(name = ("null"), role = (()))""",
             boss                                                        -> """(name = ("Alfred"), role = (()))""",
-            Person("Alfred the Second", Some(User(true, boss)))         -> """(name = ("Alfred the Second"), role = (user = (active = (true), boss = ( name = ("Alfred"), role = (())))))""",
+            Person("Alfred the Second", Some(User(true, boss)))         -> """(name = ("Alfred the Second"), role = (user = ((active = (true), boss = (( name = ("Alfred"), role = (())))))))""",
             Person("Alfred the Third", Some(Admin(List("sys", "dev")))) -> """(name = ("Alfred the Third"), role = (admin = (rights = (["sys","dev"]))))"""
           )
 
@@ -54,16 +57,16 @@ object ShowExamples {
 
                   val showS = show.shows(data)
 
-                  if (showS == expected) Succeed
-                  else Fail(List(Right(s"got $showS expected $expected")))
+                  if (comp(showS, expected)) Succeed
+                  else Fail(List(Right(s"got '$showS' expected $expected")))
 
                 }
 
                 case (fail: testz.Fail, (data, expected)) => {
                   val showS = show.shows(data)
 
-                  if (showS == expected) fail
-                  else Fail(Right(s"got $showS expected $expected") :: fail.failures)
+                  if (comp(showS, expected)) fail
+                  else Fail(Right(s"got '$showS' expected $expected") :: fail.failures)
 
                 }
 

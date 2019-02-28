@@ -51,6 +51,7 @@ trait ShowModule[R <: Realisation] extends GenericSchemaModule[R] {
       λ[RSumTerm[Show, ?] ~> Show](
         showL => Show.shows(x => s"""${sumLabelToString(showL.id)} = (${showL.schema.shows(x)})""")
       ),
+      λ[λ[X => () => Show[X]] ~> Show](thunk => Show.shows(x => thunk().shows(x))),
       Show.shows[Unit](_ => "()")
     )
 }
