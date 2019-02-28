@@ -126,6 +126,7 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
               }
             case i: IsoSchema[R.Prim, R.SumTermId, R.ProductTermId, Reads, a0, A] =>
               i.base.map(i.iso.get)
+            case SelfReference(_, _) => ???
           }
         }
       )
@@ -165,6 +166,7 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
             case Record(base, iso)    => base.contramap(iso.reverseGet)
             case SeqSchema(elem)      => Writes(seq => JsArray(seq.map(elem.writes(_))))
             case IsoSchema(base, iso) => base.contramap(iso.reverseGet)
+            case SelfReference(_, _)  => ???
           }
 
         }

@@ -8,8 +8,8 @@ import monocle.Iso
 
 final case class Person(name: String, role: Option[Role])
 sealed trait Role
-final case class User(active: Boolean)       extends Role
-final case class Admin(rights: List[String]) extends Role
+final case class User(active: Boolean, boss: Person) extends Role
+final case class Admin(rights: List[String])         extends Role
 
 object Person {
 
@@ -25,8 +25,8 @@ trait TestModule extends SchemaModule[JsonSchema.type] {
   type PersonTuple = (Seq[Char], Option[Role])
 
   val user = record(
-    "active" -*>: prim(JsonSchema.JsonBool),
-    Iso[Boolean, User](User.apply)(_.active)
+    "active" -*>: prim(JsonSchema.JsonBool) :*: "boss" -*>: self(person),
+    Iso[(Boolean, Person), User]((User.apply _).tupled)(u => (u.active, u.boss))
   )
 
   val admin = record(
@@ -41,12 +41,12 @@ trait TestModule extends SchemaModule[JsonSchema.type] {
       case -\/(u) => u
       case \/-(a) => a
     } {
-      case u @ User(_)  => -\/(u)
-      case a @ Admin(_) => \/-(a)
+      case u @ User(_, _) => -\/(u)
+      case a @ Admin(_)   => \/-(a)
     }
   )
 
-  val person = record(
+  def person: Schema[Person] = record(
     "name" -*>: prim(JsonSchema.JsonString) :*:
       "role" -*>: optional(
       role

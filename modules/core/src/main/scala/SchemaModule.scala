@@ -133,6 +133,15 @@ final case class IsoSchema[Prim[_], SumTermId, ProductTermId, F[_], A0, A](
     IsoSchema(nt(base), iso)
 }
 
+final case class SelfReference[Prim[_], SumTermId, ProductTermId, F[_], H[_], A](
+  unroll: () => F[A],
+  nattrans: F ~> H
+) extends SchemaF[Prim, SumTermId, ProductTermId, H, A] {
+
+  def hmap[G[_]](nt: H ~> G): SchemaF[Prim, SumTermId, ProductTermId, G, A] =
+    SelfReference[Prim, SumTermId, ProductTermId, F, G, A](unroll, nt.compose(nattrans))
+}
+
 /**
  * An interpreter able to derive a `F[A]` from a schema for `A` (for any `A`).
  * Such interpreters will usually be implemented using a recursion scheme like
@@ -354,4 +363,6 @@ trait SchemaModule[R <: Realisation] {
   final def iso[A0, A](base: Schema[A0], iso: Iso[A0, A]): Schema[A] =
     Fix(IsoSchema(base, iso))
 
+  final def self[A](root: => Schema[A]): Schema[A] =
+    Fix(SelfReference(() => root, λ[Schema ~> Schema](a => a)))
 }
