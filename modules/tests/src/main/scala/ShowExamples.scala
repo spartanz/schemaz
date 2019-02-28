@@ -36,11 +36,12 @@ object ShowExamples {
     section("Generating Show Instances")(
       test("commons Show Instance") { () =>
         {
+          val boss = Person("Alfred", None)
 
           val testCases: List[(Person, String)] = List(
             Person(null, None)                                          -> """(name = ("null"), role = (()))""",
-            Person("Alfred", None)                                      -> """(name = ("Alfred"), role = (()))""",
-            Person("Alfred the Second", Some(User(true)))               -> """(name = ("Alfred the Second"), role = (user = (active = (true))))""",
+            boss                                                        -> """(name = ("Alfred"), role = (()))""",
+            Person("Alfred the Second", Some(User(true, boss)))         -> """(name = ("Alfred the Second"), role = (user = (active = (true), boss = ( name = ("Alfred"), role = (())))))""",
             Person("Alfred the Third", Some(Admin(List("sys", "dev")))) -> """(name = ("Alfred the Third"), role = (admin = (rights = (["sys","dev"]))))"""
           )
 
