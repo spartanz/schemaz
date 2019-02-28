@@ -42,11 +42,11 @@ object Main {
 
   def tests[T](harness: Harness[T]): List[(String, T)] =
     List(
-      ("Examples", SchemaModuleExamples.tests(harness)),
-      ("JSON", JsonExamples.tests(harness)),
-      ("Scalacheck generators", GenModuleExamples.tests(harness)),
-      ("Generic Show interpreter", ShowExamples.tests(harness)),
-      ("Play-JSON codecs", PlayJsonExamples.tests(harness))
+      //("Examples", SchemaModuleExamples.tests(harness)),
+      //("JSON", JsonExamples.tests(harness)),
+      //("Scalacheck generators", GenModuleExamples.tests(harness)),
+      ("Generic Show interpreter", ShowExamples.tests(harness)) //,
+      //("Play-JSON codecs", PlayJsonExamples.tests(harness))
     )
 
   def main(args: Array[String]): Unit = {
