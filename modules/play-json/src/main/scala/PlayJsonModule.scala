@@ -93,15 +93,15 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
             case :+:(left, right) =>
               Reads(
                 json =>
-                  left
+                  right
                     .reads(json)
                     .fold(
                       el =>
-                        right.reads(json).map(\/-.apply) match {
+                        left.reads(json).map(-\/.apply) match {
                           case JsError(er) => JsError(JsError.merge(el, er))
                           case x           => x
                         },
-                      a => JsSuccess(-\/(a))
+                      a => JsSuccess(\/-(a))
                     )
               )
             case p: :*:[Reads, a, b, R.Prim, R.SumTermId, R.ProductTermId] =>
@@ -126,7 +126,7 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
               }
             case i: IsoSchema[R.Prim, R.SumTermId, R.ProductTermId, Reads, a0, A] =>
               i.base.map(i.iso.get)
-            case SelfReference(_, _) => ???
+            case SelfReference(unroll, nt) => Reads(a => nt(unroll()).reads(a))
           }
         }
       )
@@ -159,14 +159,14 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
                 Writes(
                   pair => Json.obj("_1" -> left.writes(pair._1), "_2" -> right.writes(pair._2))
                 )
-            case PrimSchema(p)        => primNT(p)
-            case SumTerm(id, s)       => Writes(a => Json.obj(branchLabel(id) -> s.writes(a)))
-            case Union(base, iso)     => base.contramap(iso.reverseGet)
-            case ProductTerm(id, s)   => Writes(a => Json.obj(fieldLabel(id) -> s.writes(a)))
-            case Record(base, iso)    => base.contramap(iso.reverseGet)
-            case SeqSchema(elem)      => Writes(seq => JsArray(seq.map(elem.writes(_))))
-            case IsoSchema(base, iso) => base.contramap(iso.reverseGet)
-            case SelfReference(_, _)  => ???
+            case PrimSchema(p)             => primNT(p)
+            case SumTerm(id, s)            => Writes(a => Json.obj(branchLabel(id) -> s.writes(a)))
+            case Union(base, iso)          => base.contramap(iso.reverseGet)
+            case ProductTerm(id, s)        => Writes(a => Json.obj(fieldLabel(id) -> s.writes(a)))
+            case Record(base, iso)         => base.contramap(iso.reverseGet)
+            case SeqSchema(elem)           => Writes(seq => JsArray(seq.map(elem.writes(_))))
+            case IsoSchema(base, iso)      => base.contramap(iso.reverseGet)
+            case SelfReference(unroll, nt) => Writes(a => nt(unroll()).writes(a))
           }
 
         }
