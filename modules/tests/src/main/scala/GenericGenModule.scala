@@ -19,13 +19,9 @@ trait GenericGenModule[R <: Realisation] extends GenericSchemaModule[R] {
     override def point[A](a: => A): org.scalacheck.Gen[A] = Gen.const(a)
     override def ap[A, B](fa: => org.scalacheck.Gen[A])(
       f: => org.scalacheck.Gen[A => B]
-    ): org.scalacheck.Gen[B] = genApplicativeInstance.ap(fa)(f)
-    override def alt[X](fa: => Gen[X], fb: => Gen[X]): Gen[X] =
-      for {
-        a <- fa
-        b <- fb
-        x <- Gen.oneOf(a, b)
-      } yield x
+    ): org.scalacheck.Gen[B]                                  = genApplicativeInstance.ap(fa)(f)
+    override def alt[X](fa: => Gen[X], fb: => Gen[X]): Gen[X] = Gen.oneOf(fa, fb)
+
   }
 
   implicit final def genericGenInterpreter(

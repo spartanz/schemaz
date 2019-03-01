@@ -60,12 +60,11 @@ object GenModuleExamples {
       test("Convert Schema to Gen with Generic Module") { () =>
         val module = new TestModule with GenericGenModule[JsonSchema.type] with PrimToGen {}
         import module._
-
         val personGen: Gen[PersonTuple] = personTupleSchema.to[Gen]
 
         val prop = forAll {
           (seed1: Long, seed2: Long) =>
-            val genParameters = Gen.Parameters.default
+            val genParameters = Gen.Parameters.default.withSize(10)
             val genSeed1      = Seed(seed1)
             val genSeed2      = Seed(if (seed1 != seed2) seed2 else seed2 + 1) // make sure both seeds are different
 
