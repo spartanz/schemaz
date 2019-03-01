@@ -64,7 +64,7 @@ object GenModuleExamples {
 
         val prop = forAll {
           (seed1: Long, seed2: Long) =>
-            val genParameters = Gen.Parameters.default.withSize(10)
+            val genParameters = Gen.Parameters.default
             val genSeed1      = Seed(seed1)
             val genSeed2      = Seed(if (seed1 != seed2) seed2 else seed2 + 1) // make sure both seeds are different
 
