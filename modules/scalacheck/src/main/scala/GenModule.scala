@@ -29,7 +29,7 @@ trait GenModule[R <: Realisation] extends SchemaModule[R] {
           case Union(choices, iso)       => choices.map(iso.get)
           case SumTerm(_, base)          => base
           case One()                     => Gen.const(())
-          case SelfReference(unroll, nt) => Gen.delay(nt(unroll()))
+          case ref @ SelfReference(_, _) => Gen.delay(ref.unroll)
         }
 
     })

@@ -40,7 +40,7 @@ trait JsonModule[R <: Realisation] extends SchemaModule[R] {
             encloseInBraces.compose(u.choices).compose(u.iso.reverseGet)
           case SumTerm(id, base)         => makeField(branchLabel(id)).compose(base)
           case One()                     => (_ => "null")
-          case SelfReference(unroll, nt) => (a => nt(unroll())(a))
+          case ref @ SelfReference(_, _) => (a => ref.unroll(a))
         }
     })
 }

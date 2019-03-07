@@ -134,12 +134,14 @@ final case class IsoSchema[Prim[_], SumTermId, ProductTermId, F[_], A0, A](
 }
 
 final case class SelfReference[Prim[_], SumTermId, ProductTermId, F[_], H[_], A](
-  unroll: () => F[A],
-  nattrans: F ~> H
+  private val ref: () => F[A],
+  private val nattrans: F ~> H
 ) extends SchemaF[Prim, SumTermId, ProductTermId, H, A] {
 
+  lazy val unroll: H[A] = nattrans(ref())
+
   def hmap[G[_]](nt: H ~> G): SchemaF[Prim, SumTermId, ProductTermId, G, A] =
-    SelfReference[Prim, SumTermId, ProductTermId, F, G, A](unroll, nt.compose(nattrans))
+    SelfReference[Prim, SumTermId, ProductTermId, F, G, A](ref, nt.compose(nattrans))
 }
 
 /**

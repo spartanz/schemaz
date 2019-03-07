@@ -30,7 +30,7 @@ trait GenericSchemaModule[R <: Realisation] extends SchemaModule[R] {
           case x: RUnion[H, a0, a]       => H.map(x.choices)(x.iso.get)
           case st: RSumTerm[H, a]        => sumLabelNT(st)
           case _: ROne[H]                => one
-          case SelfReference(unroll, nt) => delay(() => nt(unroll()))
+          case ref @ SelfReference(_, _) => delay(() => ref.unroll)
         }
     }
 
@@ -61,7 +61,7 @@ trait GenericSchemaModule[R <: Realisation] extends SchemaModule[R] {
           case x: RUnion[H, a0, a]       => H.contramap(x.choices)(x.iso.reverseGet)
           case st: RSumTerm[H, a]        => sumLabelNT(st)
           case _: ROne[H]                => one
-          case SelfReference(unroll, nt) => delay(() => nt(unroll()))
+          case ref @ SelfReference(_, _) => delay(() => ref.unroll)
         }
     }
 
