@@ -15,6 +15,8 @@ options:
     menu_section: interpreters
     menu_type: interpreters
     nested_options:
+      - title: "Recursive data types"
+        url: interpreters/recursive-datatypes.html
       - title: "Scalacheck Generators"
         url: interpreters/scalacheck.html
 

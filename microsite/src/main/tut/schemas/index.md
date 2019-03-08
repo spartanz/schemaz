@@ -175,6 +175,40 @@ val messageList = seq(message)
 val maybeMessage = optional(message)
 ```
 
+### Recursive schemas
 
+It is possible to define schemas for recursive types (eg. types that refer to themselves) like the following 
+
+```tut:silent
+sealed trait Tree
+final case class Node(l: Tree, r: Tree) extends Tree
+final case class Leaf(label: String)    extends Tree
+```
+
+The `Tree` type is recursive because `Node` (which is a `Tree`) is defined in terms of `Tree`.
+
+The library provides a `self` combinator that allows for such self-referential definitions.
+
+```tut
+val pairToNode = Iso[(Tree, Tree), Node]((Node.apply _).tupled)(n => (n.l, n.r))
+
+val stringToLeaf = Iso[String, Leaf](Leaf.apply _)(l => l.label)
+
+val eitherToTree = Iso[Node \/ Leaf, Tree]({
+  case -\/(n) => n
+  case \/-(l) => l
+})({
+  case n: Node => -\/(n)
+  case l: Leaf => \/-(l)
+})
+
+lazy val tree: Schema[Tree] = union(
+  "Node" -+>: record("l" -*>: self(tree) :*: "r" -*>: self(tree), pairToNode) :+: 
+  "Leaf" -+>: record("label" -*>: prim(JsonString), stringToLeaf), 
+  eitherToTree
+)
+```
+
+Note that because it refers to itself, `tree` must be defined as a `lazy val` (a `def` would work too) and its type must be specified.
 
 
