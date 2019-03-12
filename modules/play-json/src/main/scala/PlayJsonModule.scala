@@ -93,15 +93,15 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
             case :+:(left, right) =>
               Reads(
                 json =>
-                  left
+                  right
                     .reads(json)
                     .fold(
                       el =>
-                        right.reads(json).map(\/-.apply) match {
+                        left.reads(json).map(-\/.apply) match {
                           case JsError(er) => JsError(JsError.merge(el, er))
                           case x           => x
                         },
-                      a => JsSuccess(-\/(a))
+                      a => JsSuccess(\/-(a))
                     )
               )
             case p: :*:[Reads, a, b, R.Prim, R.SumTermId, R.ProductTermId] =>
@@ -113,10 +113,10 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
                   .and((JsPath \ "_2").read(p.right))((x: a, y: b) => (x, y))
             case PrimSchema(p)       => primNT(p)
             case SumTerm(id, schema) => undefinedAsNull(branchLabel(id), schema)
-            case u: Union[R.Prim, R.SumTermId, R.ProductTermId, Reads, A, a] =>
+            case u: RUnion[Reads, a, A] =>
               u.choices.map(u.iso.get)
             case ProductTerm(id, schema) => undefinedAsNull(fieldLabel(id), schema)
-            case r: Record[R.Prim, R.SumTermId, R.ProductTermId, Reads, A, a] =>
+            case r: RRecord[Reads, a, A] =>
               r.fields.map(r.iso.get)
             case SeqSchema(elem) =>
               Reads {
@@ -124,8 +124,9 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
                   elems.toList.traverse(elem.reads _)
                 case _ => JsError(Seq(JsPath -> Seq(JsonValidationError("error.expected.jsarray"))))
               }
-            case i: IsoSchema[R.Prim, R.SumTermId, R.ProductTermId, Reads, a0, A] =>
+            case i: RIso[Reads, a0, A] =>
               i.base.map(i.iso.get)
+            case ref @ SelfReference(_, _) => Reads(ref.unroll.reads)
           }
         }
       )
@@ -158,13 +159,14 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
                 Writes(
                   pair => Json.obj("_1" -> left.writes(pair._1), "_2" -> right.writes(pair._2))
                 )
-            case PrimSchema(p)        => primNT(p)
-            case SumTerm(id, s)       => Writes(a => Json.obj(branchLabel(id) -> s.writes(a)))
-            case Union(base, iso)     => base.contramap(iso.reverseGet)
-            case ProductTerm(id, s)   => Writes(a => Json.obj(fieldLabel(id) -> s.writes(a)))
-            case Record(base, iso)    => base.contramap(iso.reverseGet)
-            case SeqSchema(elem)      => Writes(seq => JsArray(seq.map(elem.writes(_))))
-            case IsoSchema(base, iso) => base.contramap(iso.reverseGet)
+            case PrimSchema(p)             => primNT(p)
+            case SumTerm(id, s)            => Writes(a => Json.obj(branchLabel(id) -> s.writes(a)))
+            case u: RUnion[Writes, a, A]   => u.choices.contramap(u.iso.reverseGet)
+            case ProductTerm(id, s)        => Writes(a => Json.obj(fieldLabel(id) -> s.writes(a)))
+            case r: RRecord[Writes, a, A]  => r.fields.contramap(r.iso.reverseGet)
+            case SeqSchema(elem)           => Writes(seq => JsArray(seq.map(elem.writes(_))))
+            case i: RIso[Writes, a, A]     => i.base.contramap(i.iso.reverseGet)
+            case ref @ SelfReference(_, _) => Writes(ref.unroll.writes)
           }
 
         }

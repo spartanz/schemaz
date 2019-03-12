@@ -38,8 +38,9 @@ trait JsonModule[R <: Realisation] extends SchemaModule[R] {
           case ProductTerm(id, base) => makeField(fieldLabel(id)).compose(base)
           case u: Union[R.Prim, R.SumTermId, R.ProductTermId, Encoder, A, _] =>
             encloseInBraces.compose(u.choices).compose(u.iso.reverseGet)
-          case SumTerm(id, base) => makeField(branchLabel(id)).compose(base)
-          case One()             => (_ => "null")
+          case SumTerm(id, base)         => makeField(branchLabel(id)).compose(base)
+          case One()                     => (_ => "null")
+          case ref @ SelfReference(_, _) => (a => ref.unroll(a))
         }
     })
 }

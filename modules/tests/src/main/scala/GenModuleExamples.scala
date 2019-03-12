@@ -60,7 +60,6 @@ object GenModuleExamples {
       test("Convert Schema to Gen with Generic Module") { () =>
         val module = new TestModule with GenericGenModule[JsonSchema.type] with PrimToGen {}
         import module._
-
         val personGen: Gen[PersonTuple] = personTupleSchema.to[Gen]
 
         val prop = forAll {
