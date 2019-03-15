@@ -15,19 +15,19 @@ trait GenModule[R <: Realisation] extends SchemaModule[R] {
 
       def apply[A](schema: RSchema[Gen, A]): Gen[A] =
         schema match {
-          case PrimSchema(prim) => primNT(prim)
-          case :*:(left, right) =>
+          case PrimSchemaF(prim) => primNT(prim)
+          case ProdF(left, right) =>
             for {
               l <- left
               r <- right
             } yield (l, r)
-          case :+:(left, right)          => Gen.oneOf(left.map(-\/(_)), right.map(\/-(_)))
-          case IsoSchema(base, iso)      => base.map(iso.get)
-          case Record(fields, iso)       => fields.map(iso.get)
-          case SeqSchema(element)        => Gen.listOf(element)
-          case ProductTerm(_, base)      => base
-          case Union(choices, iso)       => choices.map(iso.get)
-          case SumTerm(_, base)          => base
+          case SumF(left, right)         => Gen.oneOf(left.map(-\/(_)), right.map(\/-(_)))
+          case IsoSchemaF(base, iso)     => base.map(iso.get)
+          case RecordF(fields, iso)      => fields.map(iso.get)
+          case SeqF(element)             => Gen.listOf(element)
+          case FieldF(_, base)           => base
+          case UnionF(choices, iso)      => choices.map(iso.get)
+          case BranchF(_, base)          => base
           case One()                     => Gen.const(())
           case ref @ SelfReference(_, _) => Gen.delay(ref.unroll)
         }

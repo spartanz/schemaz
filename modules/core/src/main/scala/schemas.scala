@@ -2,8 +2,10 @@ package scalaz
 
 package schema
 
-object ScalaSchema {
-  type Prim[A] = ScalaPrim[A]
+object ScalaSchema extends Realisation {
+  type Prim[A]       = ScalaPrim[A]
+  type ProductTermId = String
+  type SumTermId     = String
 
   sealed trait ScalaPrim[A]
 

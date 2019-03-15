@@ -31,11 +31,11 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
 
       def apply[A](seed: LabelledSchema[A]): HEnvT[Boolean, RSchema, LabelledSchema, A] =
         seed match {
-          case (x, Fix(r @ Record(_, _))) => HEnvT(x, r.hmap(ascribeWith(true)))
-          case (x, Fix(:*:(left, right))) =>
+          case (x, Fix(r @ RecordF(_, _))) => HEnvT(x, r.hmap(ascribeWith(true)))
+          case (x, Fix(ProdF(left, right))) =>
             HEnvT(
               x,
-              :*:(
+              ProdF(
                 ascribeWith(false)(left),
                 ascribeWith(x)(right)
               )
@@ -90,7 +90,7 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
                 case JsNull => JsSuccess(())
                 case _      => JsError(Seq(JsPath -> Seq(JsonValidationError("error.expected.null"))))
               }
-            case :+:(left, right) =>
+            case SumF(left, right) =>
               Reads(
                 json =>
                   right
@@ -104,27 +104,27 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
                       a => JsSuccess(\/-(a))
                     )
               )
-            case p: :*:[Reads, a, b, R.Prim, R.SumTermId, R.ProductTermId] =>
+            case p: Prod[Reads, a, b] =>
               if (schema.ask)
                 p.left.and(p.right)((x: a, y: b) => (x, y))
               else
                 (JsPath \ "_1")
                   .read(p.left)
                   .and((JsPath \ "_2").read(p.right))((x: a, y: b) => (x, y))
-            case PrimSchema(p)       => primNT(p)
-            case SumTerm(id, schema) => undefinedAsNull(branchLabel(id), schema)
-            case u: RUnion[Reads, a, A] =>
+            case PrimSchemaF(p)      => primNT(p)
+            case BranchF(id, schema) => undefinedAsNull(branchLabel(id), schema)
+            case u: Union[Reads, a, A] =>
               u.choices.map(u.iso.get)
-            case ProductTerm(id, schema) => undefinedAsNull(fieldLabel(id), schema)
-            case r: RRecord[Reads, a, A] =>
+            case FieldF(id, schema) => undefinedAsNull(fieldLabel(id), schema)
+            case r: Record[Reads, a, A] =>
               r.fields.map(r.iso.get)
-            case SeqSchema(elem) =>
+            case SeqF(elem) =>
               Reads {
                 case JsArray(elems) =>
                   elems.toList.traverse(elem.reads _)
                 case _ => JsError(Seq(JsPath -> Seq(JsonValidationError("error.expected.jsarray"))))
               }
-            case i: RIso[Reads, a0, A] =>
+            case i: IsoSchema[Reads, a0, A] =>
               i.base.map(i.iso.get)
             case ref @ SelfReference(_, _) => Reads(ref.unroll.reads)
           }
@@ -143,9 +143,9 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
         new (HEnvT[Boolean, RSchema, Writes, ?] ~> Writes) {
 
           def apply[A](env: HEnvT[Boolean, RSchema, Writes, A]): Writes[A] = env.fa match {
-            case One()            => Writes(_ => JsNull)
-            case :+:(left, right) => Writes(_.fold(left.writes, right.writes))
-            case :*:(left, right) =>
+            case One()             => Writes(_ => JsNull)
+            case SumF(left, right) => Writes(_.fold(left.writes, right.writes))
+            case ProdF(left, right) =>
               if (env.ask)
                 Writes(
                   pair =>
@@ -159,14 +159,14 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
                 Writes(
                   pair => Json.obj("_1" -> left.writes(pair._1), "_2" -> right.writes(pair._2))
                 )
-            case PrimSchema(p)             => primNT(p)
-            case SumTerm(id, s)            => Writes(a => Json.obj(branchLabel(id) -> s.writes(a)))
-            case u: RUnion[Writes, a, A]   => u.choices.contramap(u.iso.reverseGet)
-            case ProductTerm(id, s)        => Writes(a => Json.obj(fieldLabel(id) -> s.writes(a)))
-            case r: RRecord[Writes, a, A]  => r.fields.contramap(r.iso.reverseGet)
-            case SeqSchema(elem)           => Writes(seq => JsArray(seq.map(elem.writes(_))))
-            case i: RIso[Writes, a, A]     => i.base.contramap(i.iso.reverseGet)
-            case ref @ SelfReference(_, _) => Writes(ref.unroll.writes)
+            case PrimSchemaF(p)             => primNT(p)
+            case BranchF(id, s)             => Writes(a => Json.obj(branchLabel(id) -> s.writes(a)))
+            case u: Union[Writes, a, A]     => u.choices.contramap(u.iso.reverseGet)
+            case FieldF(id, s)              => Writes(a => Json.obj(fieldLabel(id) -> s.writes(a)))
+            case r: Record[Writes, a, A]    => r.fields.contramap(r.iso.reverseGet)
+            case SeqF(elem)                 => Writes(seq => JsArray(seq.map(elem.writes(_))))
+            case i: IsoSchema[Writes, a, A] => i.base.contramap(i.iso.reverseGet)
+            case ref @ SelfReference(_, _)  => Writes(ref.unroll.writes)
           }
 
         }

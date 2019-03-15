@@ -45,10 +45,10 @@ trait ShowModule[R <: Realisation] extends GenericSchemaModule[R] {
             lst => lst.map(show.shows).mkString("[", ",", "]")
           )
       ),
-      λ[RProductTerm[Show, ?] ~> Show](
+      λ[Field[Show, ?] ~> Show](
         showL => Show.shows(x => s"""${prodLabelToString(showL.id)} = (${showL.schema.shows(x)})""")
       ),
-      λ[RSumTerm[Show, ?] ~> Show](
+      λ[Branch[Show, ?] ~> Show](
         showL => Show.shows(x => s"""${sumLabelToString(showL.id)} = (${showL.schema.shows(x)})""")
       ),
       λ[λ[X => () => Show[X]] ~> Show](thunk => Show.shows(x => thunk().shows(x))),

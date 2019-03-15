@@ -29,8 +29,8 @@ object SchemaModuleExamples {
         )
 
         adminSchema.imap(adminToListIso).imap(listToSeqIso).unFix match {
-          case IsoSchema(base, _) => assert(base == adminSchema)
-          case _                  => assert(false)
+          case IsoSchemaF(base, _) => assert(base == adminSchema)
+          case _                   => assert(false)
         }
       }
     )

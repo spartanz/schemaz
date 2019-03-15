@@ -27,18 +27,18 @@ trait JsonModule[R <: Realisation] extends SchemaModule[R] {
       def apply[A](schema: RSchema[Encoder, A]): Encoder[A] =
         schema match {
 
-          case PrimSchema(prim) => primNT(prim)
-          case :*:(left, right) => (a => left(a._1) + "," + right(a._2))
-          case :+:(left, right) => (a => a.fold(left, right))
-          case i: IsoSchema[R.Prim, R.SumTermId, R.ProductTermId, Encoder, _, A] =>
+          case PrimSchemaF(prim)  => primNT(prim)
+          case ProdF(left, right) => (a => left(a._1) + "," + right(a._2))
+          case SumF(left, right)  => (a => a.fold(left, right))
+          case i: IsoSchema[Encoder, _, A] =>
             i.base.compose(i.iso.reverseGet)
-          case r: Record[R.Prim, R.SumTermId, R.ProductTermId, Encoder, A, _] =>
+          case r: Record[Encoder, _, A] =>
             encloseInBraces.compose(r.fields).compose(r.iso.reverseGet)
-          case SeqSchema(element)    => (a => a.map(element).mkString("[", ",", "]"))
-          case ProductTerm(id, base) => makeField(fieldLabel(id)).compose(base)
-          case u: Union[R.Prim, R.SumTermId, R.ProductTermId, Encoder, A, _] =>
+          case SeqF(element)    => (a => a.map(element).mkString("[", ",", "]"))
+          case FieldF(id, base) => makeField(fieldLabel(id)).compose(base)
+          case u: Union[Encoder, _, A] =>
             encloseInBraces.compose(u.choices).compose(u.iso.reverseGet)
-          case SumTerm(id, base)         => makeField(branchLabel(id)).compose(base)
+          case BranchF(id, base)         => makeField(branchLabel(id)).compose(base)
           case One()                     => (_ => "null")
           case ref @ SelfReference(_, _) => (a => ref.unroll(a))
         }
