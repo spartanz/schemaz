@@ -64,5 +64,14 @@ trait TestModule extends SchemaModule[JsonSchema.type] with HasMigrations[JsonSc
       .upgradingVia(AddField("name", prim(JsonSchema.JsonString), "John Doe"))
       .to(person)
 
+  val personV1_ =
+    iso(
+      iso(
+        "role" -> optional(role),
+        Iso[Option[Role], (String, Option[Role])](opt => ("John Doe", opt))(_._2)
+      ),
+      Iso[(String, Option[Role]), Person]((Person.apply _).tupled)(p => (p.name, p.role))
+    )
+
 //  val Upgrading(personV1).via(AddField("name", prim(JsonSchema.JsonString), 0)) = person
 }
