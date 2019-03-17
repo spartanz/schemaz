@@ -19,7 +19,7 @@ object Person {
   val personToTupleIso = Iso[Person, (Seq[Char], Option[Role])](f)(g)
 }
 
-trait TestModule extends SchemaModule[JsonSchema.type] {
+trait TestModule extends SchemaModule[JsonSchema.type] with HasMigrations[JsonSchema.type] {
   val R = JsonSchema
 
   type PersonTuple = (Seq[Char], Option[Role])
@@ -58,4 +58,11 @@ trait TestModule extends SchemaModule[JsonSchema.type] {
     person,
     Person.personToTupleIso
   )
+
+  val personV1 =
+    Schema
+      .upgradingVia(AddField("name", prim(JsonSchema.JsonString), "John Doe"))
+      .to(person)
+
+//  val Upgrading(personV1).via(AddField("name", prim(JsonSchema.JsonString), 0)) = person
 }
