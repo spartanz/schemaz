@@ -33,7 +33,7 @@ jobs:
       stage: test
       name: "Test"
       script:
-      - sbt ++$TRAVIS_SCALA_VERSION tests/run
+      - sbt ++$TRAVIS_SCALA_VERSION coverage tests/run coverageReport
     - &makeMicrosite:
       stage: test
       name: "Make microsite"
