@@ -8,13 +8,16 @@ import recursion._
 
 trait GenericSchemaModule[R <: Realisation] extends SchemaModule[R] {
 
+  def discardingFieldLabel[H[_]]: Field[H, ?] ~> H = λ[Field[H, ?] ~> H](field => field.schema)
+
+  def discardingBranchLabel[H[_]]: Branch[H, ?] ~> H = λ[Branch[H, ?] ~> H](branch => branch.schema)
+
   def covariantTargetFunctor[H[_]](
     primNT: R.Prim ~> H,
     seqNT: H ~> λ[X => H[List[X]]],
     prodLabelNT: Field[H, ?] ~> H,
     sumLabelNT: Branch[H, ?] ~> H,
-    delay: λ[X => () => H[X]] ~> H,
-    one: H[Unit]
+    delay: λ[X => () => H[X]] ~> H
   )(implicit H: Alt[H]): HAlgebra[RSchema, H] =
     new (RSchema[H, ?] ~> H) {
 
@@ -29,7 +32,7 @@ trait GenericSchemaModule[R <: Realisation] extends SchemaModule[R] {
           case pt: Field[H, a]           => prodLabelNT(pt)
           case x: Union[H, a0, a]        => H.map(x.choices)(x.iso.get)
           case st: Branch[H, a]          => sumLabelNT(st)
-          case _: ROne[H]                => one
+          case _: ROne[H]                => H.pure(())
           case ref @ SelfReference(_, _) => delay(() => ref.unroll)
         }
     }
@@ -39,8 +42,7 @@ trait GenericSchemaModule[R <: Realisation] extends SchemaModule[R] {
     seqNT: H ~> λ[X => H[List[X]]],
     prodLabelNT: Field[H, ?] ~> H,
     sumLabelNT: Branch[H, ?] ~> H,
-    delay: λ[X => () => H[X]] ~> H,
-    one: H[Unit]
+    delay: λ[X => () => H[X]] ~> H
   )(implicit H: Decidable[H]): HAlgebra[RSchema, H] =
     new (RSchema[H, ?] ~> H) {
 
@@ -60,9 +62,8 @@ trait GenericSchemaModule[R <: Realisation] extends SchemaModule[R] {
           case pt: Field[H, a]           => prodLabelNT(pt)
           case x: Union[H, a0, a]        => H.contramap(x.choices)(x.iso.reverseGet)
           case st: Branch[H, a]          => sumLabelNT(st)
-          case _: ROne[H]                => one
+          case _: ROne[H]                => H.xproduct0[Unit](())
           case ref @ SelfReference(_, _) => delay(() => ref.unroll)
         }
     }
-
 }

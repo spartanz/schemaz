@@ -3,6 +3,14 @@
 [![Gitter](https://badges.gitter.im/scalaz/scalaz-schema.svg)](https://gitter.im/scalaz/scalaz-schema?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 
+[![Build Status][build-image]][build-url] [![Coverage Status][coverage-image]][coverage-url]
+
+[build-image]: http://img.shields.io/travis/scalaz/scalaz-schema/prototyping.svg
+[build-url]: https://travis-ci.org/scalaz/scalaz-schema
+
+[coverage-image]: https://img.shields.io/codecov/c/github/scalaz/scalaz-schema/prototyping.svg
+[coverage-url]: https://codecov.io/github/scalaz/scalaz-schema?branch=prototyping
+
 ## Goal
 
 A purely-functional library for defining type-safe schemas for algebraic data types, providing free generators, SQL queries, JSON codecs, binary codecs, and migration from this schema definition.

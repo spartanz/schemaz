@@ -30,15 +30,14 @@ trait GenericGenModule[R <: Realisation] extends GenericSchemaModule[R] {
     covariantTargetFunctor(
       primNT,
       λ[Gen ~> λ[X => Gen[List[X]]]](x => Gen.listOf(x)),
-      λ[Field[Gen, ?] ~> Gen](gen => gen.schema),
-      λ[Branch[Gen, ?] ~> Gen](gen => gen.schema),
+      discardingFieldLabel,
+      discardingBranchLabel,
       λ[λ[X => () => Gen[X]] ~> Gen](
         thunk =>
           Gen.delay {
             thunk()
           }
-      ),
-      Gen.const(())
+      )
     )
   )
 }

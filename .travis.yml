@@ -1,68 +1,62 @@
 language: scala
 sudo: false
-
 scala:
 - 2.12.6
-
 jdk:
 - oraclejdk8
-
 before_install:
-- "[ -z \"${travis_key_password}\" ] || openssl aes-256-cbc -k $travis_key_password -d -md sha256 -a -in travis-deploy-key.enc -out travis-deploy-key -d"
+- '[ -z "${travis_key_password}" ] || openssl aes-256-cbc -k $travis_key_password
+  -d -md sha256 -a -in travis-deploy-key.enc -out travis-deploy-key -d'
 - export PATH=${PATH}:./vendor/bundle
-
 install:
 - rvm use 2.4.4 --install --fuzzy
 - gem update --system
 - gem install sass
 - gem install jekyll -v 3.8.3
-
 stages:
 - name: test
 - name: publishMicrosite
-  if: (branch = prototyping AND type = push) OR tag IS present
-
+  if: "(branch = prototyping AND type = push) OR tag IS present"
 jobs:
   include:
-    - &lint:
-      stage: test
-      name: "Lint"
-      script: 
-      - sbt ++$TRAVIS_SCALA_VERSION scalafmtCheck scalafmtSbtCheck 
-    - &test:
-      stage: test
-      name: "Test"
-      script:
-      - sbt ++$TRAVIS_SCALA_VERSION tests/run
-    - &makeMicrosite:
-      stage: test
-      name: "Make microsite"
-      script:
-      - sbt ++$TRAVIS_SCALA_VERSION microsite/makeMicrosite
-    - &publishSite
-      stage: publishMicrosite
-      name: "Publish microsite"
-      before_script:
-      - cp ./travis-deploy-key ~/.ssh/id_rsa
-      - chmod 600 ~/.ssh/id_rsa
-      script:
-      - git config --global user.email "valentin.kasas@gmail.com"
-      - git config --global user.name "Valentin Kasas"
-      - git config --global push.default simple
-      - sbt ++$TRAVIS_SCALA_VERSION microsite/publishMicrosite
-
+  - ! '': 
+    stage: test
+    name: Lint
+    script:
+    - sbt ++$TRAVIS_SCALA_VERSION scalafmtCheck scalafmtSbtCheck
+  - ! '': 
+    stage: test
+    name: Test
+    script:
+    - sbt ++$TRAVIS_SCALA_VERSION coverage tests/run coverageReport
+    after_success:
+    - bash <(curl -s https://codecov.io/bash)
+  - ! '': 
+    stage: test
+    name: Make microsite
+    script:
+    - sbt ++$TRAVIS_SCALA_VERSION microsite/makeMicrosite
+  - stage: publishMicrosite
+    name: Publish microsite
+    before_script:
+    - cp ./travis-deploy-key ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    script:
+    - git config --global user.email "valentin.kasas@gmail.com"
+    - git config --global user.name "Valentin Kasas"
+    - git config --global push.default simple
+    - sbt ++$TRAVIS_SCALA_VERSION microsite/publishMicrosite
 cache:
   directories:
-  - $HOME/.sbt/1.0/dependency
-  - $HOME/.sbt/boot/scala*
-  - $HOME/.sbt/launchers
-  - $HOME/.rvm
-
+  - "$HOME/.sbt/1.0/dependency"
+  - "$HOME/.sbt/boot/scala*"
+  - "$HOME/.sbt/launchers"
+  - "$HOME/.rvm"
 before_cache:
 - find $HOME/.sbt -name "*.lock" -type f -delete
 - find $HOME/.ivy2/cache -name "ivydata-*.properties" -type f -delete
 - rm -rf $HOME/.ivy2/local
-
 env:
   matrix:
-    secure: Qc0FvtfeOLdzYBilWM7KpaTKOJWC3hjmMvmqrUZS7ssELoaSIi/bvPDTK1Ecgk5M7sakl/jg2Nw6DNLZt58LnBjRVuwm9Qvht6oJDiRzIBIjOq/tWst9WTlC9SRVIHyoKdZHc45TxpxC0jRqc+evp437B7i8AxUOZfJdBI4d4X3uphaeIa8cq1UlUYt/2wTZ+QBSK5ZxPfqb8K/++00WYSLqET+F8Dffj9OLTtu7d8Qj4fFGW/6uSF88Botb2RUfr8RrqpyiUYWkFduyXMTXTx013Z61qAbxwpRUx8GRP+VsC8nGUjmtEqc1oJ+14uGZknWV2rPRIYTRvCSVWXrD4QtJSyPLsEiJZMbhBkSR1iCCieqMCsN+t3LJB7Qt9s/TuiqSQNcg6cwnpxE9hzou/wg3eLGco3RUsDDlZFHi5bdGMGP0T9wARaNoGpbZZnvWvcb0QRDGYZOutHisUDPABo8is5nQwT9DKvGQMRl2zOlbT3EuBfqlQ5pYU6ls0CTzwtLY0RCPOx9U2pXLBO9shqFRrZ7srWDUC4t7rTFLwP5tmmHA8fIULVAXAEgMnPsvcjW0KcKw3/SYCOEu8wUxF0mEahfhX/+vjw+XcEv+e/3gfG5St4qRPuMOBFVGnwQHe8w/t5kyZdSyyOpRz5EBoVOLL4bsIxpcSEKDl0Fa/0k=
+  - secure: Qc0FvtfeOLdzYBilWM7KpaTKOJWC3hjmMvmqrUZS7ssELoaSIi/bvPDTK1Ecgk5M7sakl/jg2Nw6DNLZt58LnBjRVuwm9Qvht6oJDiRzIBIjOq/tWst9WTlC9SRVIHyoKdZHc45TxpxC0jRqc+evp437B7i8AxUOZfJdBI4d4X3uphaeIa8cq1UlUYt/2wTZ+QBSK5ZxPfqb8K/++00WYSLqET+F8Dffj9OLTtu7d8Qj4fFGW/6uSF88Botb2RUfr8RrqpyiUYWkFduyXMTXTx013Z61qAbxwpRUx8GRP+VsC8nGUjmtEqc1oJ+14uGZknWV2rPRIYTRvCSVWXrD4QtJSyPLsEiJZMbhBkSR1iCCieqMCsN+t3LJB7Qt9s/TuiqSQNcg6cwnpxE9hzou/wg3eLGco3RUsDDlZFHi5bdGMGP0T9wARaNoGpbZZnvWvcb0QRDGYZOutHisUDPABo8is5nQwT9DKvGQMRl2zOlbT3EuBfqlQ5pYU6ls0CTzwtLY0RCPOx9U2pXLBO9shqFRrZ7srWDUC4t7rTFLwP5tmmHA8fIULVAXAEgMnPsvcjW0KcKw3/SYCOEu8wUxF0mEahfhX/+vjw+XcEv+e/3gfG5St4qRPuMOBFVGnwQHe8w/t5kyZdSyyOpRz5EBoVOLL4bsIxpcSEKDl0Fa/0k=
+  - secure: eX48rnkf4yB+r3GjiCMpNQtw76qDGoVkyMY/J6h8jjzm0/P4xVKlnq2OVV0b/iJXBOH+pa73II8KyKRk8frFHTpr82kRmTQO0lGE1+PmP4/PpZuHRfGvLwYwnH8YiLBVMLDT1uvzOUFTriER5xyt5N4kaQU99+VSJM05NCUmkBDwNF14cDzCo7TquOrcfzsKL3J+ujI1QWswXhzr38QHMQzjUmEZvf6ooLKQwvCl845X5HWbBj9g0w1ssak5TgTIeO7AUjMDXI5srxBke7ZlDv427BKUS56J/AWsFhQUTz6rNnuX2FUdnmok34WT26dMQlYlhKXE6PlPVQgs5kZQTHra3wy8IU4RjmTz5FnAbCnQFsqBe+YgIq+kyNoaKHp8jJ+iRO9StiPhwCe8mMRfEir7uD7n+ekuoKIVi27sXbHk+hIong1h3v1VdxRU+DXu0rZm19bFqVT4/fihaa9PXzFF6qmfQUTubElO7oXgPRDr7LOqw+rZ3qVue1w4VoVGIKo1DuW4ZN+MWSKyhjduqmz386738gafmXTAINNFhyBKmWqVXy6+ND3RH3QPCQ88lmb7xIvWCppJM6+TNA1Nvpfsz5TYeVsdTbJSEh+vLY0d1u4jCXICKLVvRw5wlegAlQzfQZ7AVZxuvdt3SnJj+JCFOZNzmQpJ0GLrQxyqDLo=
