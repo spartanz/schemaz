@@ -6,11 +6,11 @@ import recursion._
 
 import SchemaF._
 
-  import monocle.Iso
+import monocle.Iso
 
 sealed trait MigrationStep[Prim[_], SumTermId, ProductTermId] {
 
-  private def addField[A, B](base: Schema[B], default: A) = Iso[B, (A, B)](b => (default, b))(_._2)
+  //private def addField[A, B](base: Schema[B], default: A) = Iso[B, (A, B)](b => (default, b))(_._2)
 
   def algebra: HAlgebra[SchemaF[Prim, SumTermId, ProductTermId, ?[_], ?], FSchema[
     Prim,
@@ -28,6 +28,7 @@ sealed trait MigrationStep[Prim[_], SumTermId, ProductTermId] {
 }
 
 final case class AddField[A, Prim[_], SumTermId, ProductTermId](
+  position: Int,
   name: ProductTermId,
   schema: FSchema[Prim, SumTermId, ProductTermId, A],
   default: A
@@ -35,13 +36,12 @@ final case class AddField[A, Prim[_], SumTermId, ProductTermId](
 
   override val algebra   = ???
   override val coalgebra = ???
+
 }
 
 trait HasMigrations[R <: Realisation] extends SchemaModule[R] {
 
   import Scalaz._
-
-
 
   final class UpgradingSchema(step: MigrationStep[R.Prim, R.SumTermId, R.ProductTermId]) {
     type Err = String

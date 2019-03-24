@@ -13,6 +13,12 @@ trait Realisation {
 }
 
 sealed trait SchemaF[Prim[_], SumTermId, ProductTermId, F[_], A] {
+  type L
+  type R
+  def inLeft: Option[F[L]]          = None
+  //def putLeft(fl: F[L]): this.type  = this
+  def inRight: Option[F[R]]         = None
+  //def putRight(fr: F[R]): this.type = this
   def hmap[G[_]](nt: F ~> G): SchemaF[Prim, SumTermId, ProductTermId, G, A]
 }
 
@@ -33,6 +39,12 @@ final case class One[F[_], Prim[_], SumTermId, ProductTermId]()
 final case class SumF[F[_], A, B, Prim[_], SumTermId, ProductTermId](left: F[A], right: F[B])
     extends SchemaF[Prim, SumTermId, ProductTermId, F, A \/ B] {
 
+  override type L = A
+  override type R = B
+
+  override def inLeft: Option[F[L]]  = Some(left)
+  override def inRight: Option[F[R]] = Some(right)
+
   def hmap[G[_]](nt: F ~> G): SchemaF[Prim, SumTermId, ProductTermId, G, A \/ B] =
     SumF(nt(left), nt(right))
   override def toString: String = s"$left :+: $right"
@@ -43,6 +55,12 @@ final case class SumF[F[_], A, B, Prim[_], SumTermId, ProductTermId](left: F[A],
  */
 final case class ProdF[F[_], A, B, Prim[_], SumTermId, ProductTermId](left: F[A], right: F[B])
     extends SchemaF[Prim, SumTermId, ProductTermId, F, (A, B)] {
+
+  override type L = A
+  override type R = B
+
+  override def inLeft: Option[F[L]]  = Some(left)
+  override def inRight: Option[F[R]] = Some(right)
 
   def hmap[G[_]](nt: F ~> G): SchemaF[Prim, SumTermId, ProductTermId, G, (A, B)] =
     ProdF(nt(left), nt(right))
@@ -67,6 +85,12 @@ final case class PrimSchemaF[F[_], A, Prim[_], SumTermId, ProductTermId](prim: P
 final case class BranchF[F[_], A, Prim[_], SumTermId, ProductTermId](id: SumTermId, schema: F[A])
     extends SchemaF[Prim, SumTermId, ProductTermId, F, A] {
 
+  override type L = A
+  override type R = A
+
+  override def inLeft: Option[F[L]]  = Some(schema)
+  override def inRight: Option[F[R]] = Some(schema)
+
   def hmap[G[_]](nt: F ~> G): SchemaF[Prim, SumTermId, ProductTermId, G, A] =
     BranchF(id, nt(schema))
 }
@@ -80,6 +104,12 @@ sealed abstract case class UnionF[F[_], A, AE, Prim[_], SumTermId, ProductTermId
   iso: Iso[AE, A]
 ) extends SchemaF[Prim, SumTermId, ProductTermId, F, A] {
 
+  override type L = AE
+  override type R = AE
+
+  override def inLeft: Option[F[L]]  = Some(choices)
+  override def inRight: Option[F[R]] = Some(choices)
+
   def hmap[G[_]](nt: F ~> G): SchemaF[Prim, SumTermId, ProductTermId, G, A] =
     new UnionF[G, A, AE, Prim, SumTermId, ProductTermId](nt(choices), iso) {}
 }
@@ -91,6 +121,12 @@ final case class FieldF[F[_], A, Prim[_], SumTermId, ProductTermId](
   id: ProductTermId,
   schema: F[A]
 ) extends SchemaF[Prim, SumTermId, ProductTermId, F, A] {
+
+  override type L = A
+  override type R = A
+
+  override def inLeft: Option[F[L]]  = Some(schema)
+  override def inRight: Option[F[R]] = Some(schema)
 
   def hmap[G[_]](nt: F ~> G): SchemaF[Prim, SumTermId, ProductTermId, G, A] =
     FieldF(id, nt(schema))
@@ -105,6 +141,12 @@ sealed abstract case class RecordF[F[_], A, AP, Prim[_], SumTermId, ProductTermI
   iso: Iso[AP, A]
 ) extends SchemaF[Prim, SumTermId, ProductTermId, F, A] {
 
+  override type L = AP
+  override type R = AP
+
+  override def inLeft: Option[F[L]]  = Some(fields)
+  override def inRight: Option[F[R]] = Some(fields)
+
   def hmap[G[_]](nt: F ~> G): SchemaF[Prim, SumTermId, ProductTermId, G, A] =
     new RecordF[G, A, AP, Prim, SumTermId, ProductTermId](nt(fields), iso) {}
 }
@@ -114,6 +156,12 @@ sealed abstract case class RecordF[F[_], A, AP, Prim[_], SumTermId, ProductTermI
  */
 final case class SeqF[F[_], A, Prim[_], SumTermId, ProductTermId](element: F[A])
     extends SchemaF[Prim, SumTermId, ProductTermId, F, List[A]] {
+
+  override type L = A
+  override type R = A
+
+  override def inLeft: Option[F[L]]  = Some(element)
+  override def inRight: Option[F[R]] = Some(element)
 
   def hmap[G[_]](nt: F ~> G): SchemaF[Prim, SumTermId, ProductTermId, G, List[A]] =
     SeqF(nt(element))
@@ -128,6 +176,12 @@ final case class IsoSchemaF[F[_], A0, A, Prim[_], SumTermId, ProductTermId](
   iso: Iso[A0, A]
 ) extends SchemaF[Prim, SumTermId, ProductTermId, F, A] {
 
+  override type L = A0
+  override type R = A0
+
+  override def inLeft: Option[F[L]]  = Some(base)
+  override def inRight: Option[F[R]] = Some(base)
+
   def hmap[G[_]](nt: F ~> G): SchemaF[Prim, SumTermId, ProductTermId, G, A] =
     IsoSchemaF(nt(base), iso)
 }
@@ -136,6 +190,12 @@ final case class SelfReference[F[_], H[_], A, Prim[_], SumTermId, ProductTermId]
   private val ref: () => F[A],
   private val nattrans: F ~> H
 ) extends SchemaF[Prim, SumTermId, ProductTermId, H, A] {
+
+  override type L = A
+  override type R = A
+
+  override def inLeft: Option[H[L]]  = Some(unroll)
+  override def inRight: Option[H[R]] = Some(unroll)
 
   lazy val unroll: H[A] = nattrans(ref())
 
