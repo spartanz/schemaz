@@ -10,6 +10,24 @@ package recursion {
 
   final case class Fix[F[_[_], _], A](unFix: F[Fix[F, ?], A])
 
+  class FixR[F[_[_], _], A](val unFix: F[Fix[F, ?], A]) {
+    type Repr
+    def toFix: Fix[F, A] = Fix(unFix)
+  }
+
+  object FixR {
+    type Aux[F[_[_], _], R, A] = FixR[F, A] { type Repr = R }
+
+    def apply[R] = new Fixer[R]
+  }
+
+  class Fixer[R] {
+
+    def apply[F[_[_], _], A](unFixed: F[Fix[F, ?], A]): FixR.Aux[F, R, A] = new FixR(unFixed) {
+      type Repr = R
+    }
+  }
+
   final case class HEnvT[E, F[_[_], _], G[_], I](ask: E, fa: F[G, I])
 
   object HEnvT {
