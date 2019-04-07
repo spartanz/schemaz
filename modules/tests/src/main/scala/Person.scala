@@ -23,7 +23,7 @@ trait TestModule extends SchemaModule[JsonSchema.type] {
   type PersonTuple = (Seq[Char], Option[Role])
 
   val user = record(
-    "active" -*>: prim(JsonSchema.JsonBool) :*: "boss" -*>: self(person),
+    "active" -*>: prim(JsonSchema.JsonBool) :*: "boss" -*>: self[Person](person),
     Iso[(Boolean, Person), User]((User.apply _).tupled)(u => (u.active, u.boss))
   )
 
@@ -44,7 +44,7 @@ trait TestModule extends SchemaModule[JsonSchema.type] {
     }
   )
 
-  def person: Schema[Person] = record(
+  def person: Schema_[Person] = record(
     "name" -*>: prim(JsonSchema.JsonString) :*:
       "role" -*>: optional(
       role
