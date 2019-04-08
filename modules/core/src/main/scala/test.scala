@@ -13,7 +13,7 @@ final case class Admin(rights: List[String])         extends Role
 
 final case class Foo(s: String, b: Boolean, i: BigDecimal)
 
-trait TestModule extends SchemaModule[JsonSchema.type] {
+trait TestModule extends JsonModule[JsonSchema.type] {
   val R = JsonSchema
 
   /*type PersonTuple = (Seq[Char], Option[Role])
@@ -51,6 +51,10 @@ trait TestModule extends SchemaModule[JsonSchema.type] {
     )
   )
 
+  class Deriver[Repr, A](schema: Schema[Repr, A]) {
+    def deriveTo[G[_, _]](implicit derivation: Derivation[Repr, A, G]) = derivation.derive(schema)
+  }
+
   implicit def primDerivation[A] = new Derivation.PrimStep[Schema, A, JsonSchema.JsonPrim[A], A](
     primGadt => prim(primGadt)
   )
@@ -70,9 +74,23 @@ trait TestModule extends SchemaModule[JsonSchema.type] {
         )
     })
 
-  val newFoo = Derivation.Deriver(foo).deriveTo[Schema]
+  val newFoo = new Deriver(
+    foo
+  ).deriveTo[Schema]
 
-  println(newFoo)
+  implicit val primToEncoderNT = new (JsonSchema.JsonPrim ~> Json.Encoder) {
+
+    def apply[A](fa: JsonSchema.JsonPrim[A]): Json.Encoder[A] = { a =>
+      fa match {
+        case JsonSchema.JsonNumber => a.toString
+        case JsonSchema.JsonBool   => a.toString
+        case JsonSchema.JsonString => s""""$a""""
+        case JsonSchema.JsonNull   => "null"
+      }
+    }
+  }
+
+  val newEnc = newFoo.to[Json.Encoder]
 
   /*val role = union(
     "user" -+>: user :+:
