@@ -269,6 +269,7 @@ object SchemaF {
     def toSchema = FixR[(R1, R2)](new ProdF(l.toSchema.toFix, r.toSchema.toFix))
 
   }
+
 }
 
 trait SchemaModule[R <: Realisation] {
