@@ -1,10 +1,10 @@
-import scalaz._, schema._
+import scalaz._, schema._, Json._
 import monocle._
 
-object module extends SchemaModule[JsonSchema.type] { 
+object module extends JsonModule[JsonSchema.type] { 
 
   val R = JsonSchema 
-
+  import R._
 final case class Person(name: String, role: Option[Role])
 sealed trait Role
 final case class User(active: Boolean, boss: Person) extends Role
@@ -12,8 +12,8 @@ final case class Admin(rights: List[String])         extends Role
 
 
 
-  def user[Repr](pers: Schema[Repr, Person]) = record(
-    "active" -*>: prim(JsonSchema.JsonBool) :*: "boss" -*>: self[Person](pers),
+  def user(pers: Schema_[ Person]) = record(
+    "active" -*>: prim(JsonSchema.JsonBool) :*: "boss" -*>: self(pers),
     Iso[(Boolean, Person), User]((User.apply _).tupled)(u => (u.active, u.boss))
   )
 
@@ -22,7 +22,7 @@ final case class Admin(rights: List[String])         extends Role
     Iso[List[String], Admin](Admin.apply)(_.rights)
   )
 
-  def role[Repr](pers: Schema[Repr, Person]) = union(
+  def role(pers: Schema_[Person]) = union(
     "user" -+>: user(pers) :+:
       "admin" -+>: admin,
     Iso[User \/ Admin, Role] {
@@ -37,12 +37,25 @@ final case class Admin(rights: List[String])         extends Role
   def person(pers: Schema_[Person]) = record(
     "name" -*>: prim(JsonSchema.JsonString) :*:
       "role" -*>: optional(
-      role[pers.Repr](pers)
+      role(pers)
     ),
     Iso[(String, Option[Role]), Person]((Person.apply _).tupled)(p => (p.name, p.role))
   )
 
-  val p = person(null)
+        implicit val primToEncoderNT = new (R.Prim ~> Encoder) {
+          def apply[A](fa: R.Prim[A]): Encoder[A] = { a =>
+            fa match {
+              case JsonNumber => a.toString
+              case JsonBool   => a.toString
+              case JsonString => s""""$a""""
+              case JsonNull   => "null"
+            }
+          }
+        }
+
+
+  val p = person(person(null))
 }
 import module._
-:t p
+val burns = Person("Montgommery Burns", Some(Admin(List("billionaire", "evil mastermind"))))
+val homer = Person("Homer Simpson", Some(User(true, burns)))
