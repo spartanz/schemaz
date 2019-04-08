@@ -55,24 +55,80 @@ trait TestModule extends JsonModule[JsonSchema.type] {
     def deriveTo[G[_, _]](implicit derivation: Derivation[Repr, A, G]) = derivation.derive(schema)
   }
 
-  implicit def primDerivation[A] = new Derivation.PrimStep[Schema, A, JsonSchema.JsonPrim[A], A](
-    primGadt => prim(primGadt)
-  )
-  implicit def fieldDerivation[XR, X] =
-    new Derivation.FieldStep[Schema, XR, X, FieldR[XR], X]({
-      case (id, schema) => ((id + "new") -*>: schema).toSchema
-    })
-  implicit def productDerivation[XR, X, YR, Y] =
-    new Derivation.ProdStep[Schema, XR, X, YR, Y, (XR, YR), (X, Y)]({
-      case (l, r) => l :*: r
-    })
-  implicit def recordDerivation[XR, XP, X] =
-    new Derivation.RecordStep[Schema, XP, X, XR, XP, RecordR[XP, X], X]({
-      case (iso, schema) =>
-        recursion.FixR[RecordR[XP, X]](
-          new RecordF[BareSchema, X, XP, JsonSchema.JsonPrim, String, String](schema.toFix, iso) {}
-        )
-    })
+  trait LowPrio {
+    implicit def primDerivation[A] = new Derivation.PrimStep[Schema, A, JsonSchema.JsonPrim[A], A](
+      primGadt => prim(primGadt)
+    )
+    implicit def fieldDerivation[XR, X] =
+      new Derivation.FieldStep[Schema, XR, X, FieldR[XR], X]({
+        case (id, schema) => (id -*>: schema).toSchema
+      })
+    implicit def productDerivation[XR, X, YR, Y] =
+      new Derivation.ProdStep[Schema, XR, X, YR, Y, (XR, YR), (X, Y)]({
+        case (l, r) => l :*: r
+      })
+    implicit def recordDerivation[XR, XP, X] =
+      new Derivation.RecordStep[Schema, XP, X, XR, XP, RecordR[XR, X], X]({
+          case (iso, schema) =>
+            recursion
+              .FixR[RecordR[XR, X]](
+                new RecordF[BareSchema, X, XP, JsonSchema.JsonPrim, String, String](
+                  schema.toFix,
+                  iso
+                ) {}
+              )
+        }
+      )
+  }
+
+  object Derivations extends LowPrio {
+    implicit def dropString[YR, Y] =
+      new Derivation.ProdStep[
+        Schema,
+        FieldR[JsonSchema.JsonPrim[String]],
+        String,
+        YR,
+        Y,
+        YR,
+        Y
+      ]({
+        case (_, r) => r
+      })
+
+    implicit def reWrapProductWithDefault =
+      new Derivation.RecordStep[
+        Schema,
+        (String, (Boolean, BigDecimal)),
+        Foo,
+        (FieldR[R.Prim[Boolean]], FieldR[R.Prim[BigDecimal]]),
+        (Boolean, BigDecimal),
+        RecordR[(JsonSchema.JsonPrim[Boolean], JsonSchema.JsonPrim[BigDecimal]), Foo],
+        Foo
+      ]({
+        case (_, schema) =>
+          recursion.FixR[
+            RecordR[(JsonSchema.JsonPrim[Boolean], JsonSchema.JsonPrim[BigDecimal]), Foo]
+          ](
+            new RecordF[
+              BareSchema,
+              Foo,
+              (Boolean, BigDecimal),
+              JsonSchema.JsonPrim,
+              String,
+              String
+            ](
+              schema.toFix,
+              Iso[(Boolean, BigDecimal), Foo](
+                tpl => Foo("defaultValue", tpl._1, tpl._2)
+              )(
+                x => (x.b, x.i)
+              )
+            ) {}
+          )
+      })
+  }
+
+  import Derivations._
 
   val newFoo = new Deriver(
     foo
