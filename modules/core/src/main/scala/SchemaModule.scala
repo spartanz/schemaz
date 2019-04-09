@@ -591,6 +591,21 @@ trait SchemaModule[R <: Realisation] {
       ](choices.toSchema.toFix, iso) {}
     )
 
+  final def unionUnsafe[Repr, A, AE](
+    choices: Schema[Repr, AE],
+    iso: Iso[AE, A]
+  ): Schema[UnionR[Repr, AE, A], A] =
+    FixR[UnionR[Repr, AE, A]](
+      new UnionF[
+        FSchema[R.Prim, R.SumTermId, R.ProductTermId, ?],
+        A,
+        AE,
+        R.Prim,
+        R.SumTermId,
+        R.ProductTermId
+      ](choices.toFix, iso) {}
+    )
+
   final def optional[Repr, A](
     aSchema: Schema[Repr, A]
   ): Schema[IsoR[Repr \/ Unit, A \/ Unit, Option[A]], Option[A]] =
