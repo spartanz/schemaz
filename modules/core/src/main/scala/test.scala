@@ -62,28 +62,13 @@ trait TestModule extends JsonModule[JsonSchema.type] {
         )
     )(
       (_, schema) =>
-        recursion.FixR[
-          RecordR[
-            (JsonSchema.JsonPrim[Boolean], JsonSchema.JsonPrim[BigDecimal]),
-            (Boolean, BigDecimal),
-            Foo
-          ]
-        ](
-          new RecordF[
-            BareSchema,
-            Foo,
-            (Boolean, BigDecimal),
-            R.Prim,
-            R.SumTermId,
-            R.ProductTermId
-          ](
-            schema.toFix,
-            Iso[(Boolean, BigDecimal), Foo](
-              tpl => Foo("default", tpl._1, tpl._2)
-            )(
-              foo => (foo.b, foo.i)
-            )
-          ) {}
+        recordUnsafe(
+          schema,
+          Iso[(Boolean, BigDecimal), Foo](
+            tpl => Foo("default", tpl._1, tpl._2)
+          )(
+            foo => (foo.b, foo.i)
+          )
         )
     )
 
@@ -101,7 +86,7 @@ trait TestModule extends JsonModule[JsonSchema.type] {
     }
   }
 
-   val newEnc = newFoo.to[Json.Encoder]
+  val newEnc = newFoo.to[Json.Encoder]
 
   /*val role = union(
     "user" -+>: user :+:

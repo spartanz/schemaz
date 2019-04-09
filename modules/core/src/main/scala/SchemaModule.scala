@@ -523,6 +523,21 @@ trait SchemaModule[R <: Realisation] {
       ](terms.toSchema.toFix, isoA) {}
     )
 
+  final def recordUnsafe[Repr, A, An](
+    terms: Schema[Repr, An],
+    isoA: Iso[An, A]
+  ): Schema[RecordR[Repr, An, A], A] =
+    FixR[RecordR[Repr, An, A]](
+      new RecordF[
+        FSchema[R.Prim, R.SumTermId, R.ProductTermId, ?],
+        A,
+        An,
+        R.Prim,
+        R.SumTermId,
+        R.ProductTermId
+      ](terms.toFix, isoA) {}
+    )
+
   final def seq[Repr, A](element: Schema[Repr, A]): Schema[Repr, List[A]] =
     FixR[Repr](
       SeqF[
