@@ -325,6 +325,35 @@ trait SchemaModule[R <: Realisation] {
         override def to: G[ReprOut, Out] = value
       }
 
+    //SumCase
+    def sum[
+      XR,
+      YR,
+      X,
+      Y,
+      XROut,
+      YROut,
+      XOut,
+      YOut,
+      ReprOut,
+      Out
+    ](
+      schema: Schema[XR \/ YR, X \/ Y]
+    )(
+      lDerive: (DerivationTo[G], Schema[XR, X]) => Derivation[G, XR, X, XROut, XOut],
+      rDerive: (DerivationTo[G], Schema[YR, Y]) => Derivation[G, YR, Y, YROut, YOut]
+    )(
+      derive: (G[XROut, XOut], G[YROut, YOut]) => G[ReprOut, Out]
+    ): Derivation[G, XR \/ YR, X \/ Y, ReprOut, Out] =
+      new Derivation[G, XR \/ YR, X \/ Y, ReprOut, Out](schema) {
+        override def to: G[ReprOut, Out] = {
+          val schemaF  = schema.unFix.asInstanceOf[Sum[BareSchema, X, Y]]
+          val lDerived = lDerive(self, FixR[XR](schemaF.left.unFix))
+          val rDerived = rDerive(self, FixR[YR](schemaF.right.unFix))
+          derive(lDerived.to, rDerived.to)
+        }
+      }
+
     //ProductCase
     def prod[
       XR,
@@ -377,6 +406,29 @@ trait SchemaModule[R <: Realisation] {
         }
       }
 
+    //branch case
+    def branch[
+      XR,
+      X,
+      XROut,
+      XOut,
+      ReprOut,
+      Out
+    ](
+      schema: Schema[BranchR[XR], X]
+    )(
+      baseDerive: (DerivationTo[G], Schema[XR, X]) => Derivation[G, XR, X, XROut, XOut]
+    )(
+      derive: (R.SumTermId, G[XROut, XOut]) => G[ReprOut, Out]
+    ): Derivation[G, BranchR[XR], X, ReprOut, Out] =
+      new Derivation[G, BranchR[XR], X, ReprOut, Out](schema) {
+        override def to: G[ReprOut, Out] = {
+          val schemaF     = schema.unFix.asInstanceOf[Branch[BareSchema, X]]
+          val baseDerived = baseDerive(self, FixR[XR](schemaF.schema.unFix))
+          derive(schemaF.id, baseDerived.to)
+        }
+      }
+
     //record case
     def rec[
       XR,
@@ -397,6 +449,54 @@ trait SchemaModule[R <: Realisation] {
         override def to: G[ReprOut, Out] = {
           val schemaF     = schema.unFix.asInstanceOf[Record[BareSchema, XP, X]]
           val baseDerived = baseDerive(self, FixR[XR](schemaF.fields.unFix))
+          derive(schemaF.iso, baseDerived.to)
+        }
+      }
+
+    //union case
+    def union[
+      XR,
+      XP,
+      X,
+      XROut,
+      XOut,
+      ReprOut,
+      Out
+    ](
+      schema: Schema[UnionR[XR, XP, X], X]
+    )(
+      baseDerive: (DerivationTo[G], Schema[XR, XP]) => Derivation[G, XR, XP, XROut, XOut]
+    )(
+      derive: (Iso[XP, X], G[XROut, XOut]) => G[ReprOut, Out]
+    ): Derivation[G, UnionR[XR, XP, X], X, ReprOut, Out] =
+      new Derivation[G, UnionR[XR, XP, X], X, ReprOut, Out](schema) {
+        override def to: G[ReprOut, Out] = {
+          val schemaF     = schema.unFix.asInstanceOf[Union[BareSchema, XP, X]]
+          val baseDerived = baseDerive(self, FixR[XR](schemaF.choices.unFix))
+          derive(schemaF.iso, baseDerived.to)
+        }
+      }
+
+    //iso case
+    def iso[
+      XR,
+      XP,
+      X,
+      XROut,
+      XOut,
+      ReprOut,
+      Out
+    ](
+      schema: Schema[IsoR[XR, XP, X], X]
+    )(
+      baseDerive: (DerivationTo[G], Schema[XR, XP]) => Derivation[G, XR, XP, XROut, XOut]
+    )(
+      derive: (Iso[XP, X], G[XROut, XOut]) => G[ReprOut, Out]
+    ): Derivation[G, IsoR[XR, XP, X], X, ReprOut, Out] =
+      new Derivation[G, IsoR[XR, XP, X], X, ReprOut, Out](schema) {
+        override def to: G[ReprOut, Out] = {
+          val schemaF     = schema.unFix.asInstanceOf[IsoSchema[BareSchema, XP, X]]
+          val baseDerived = baseDerive(self, FixR[XR](schemaF.base.unFix))
           derive(schemaF.iso, baseDerived.to)
         }
       }
