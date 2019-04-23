@@ -12,7 +12,7 @@ final case class Admin(rights: List[String])         extends Role
 
 
 
-  def user(pers: Schema_[ Person]) = record(
+  def user(pers: BareSchema[ Person]) = record(
     "active" -*>: prim(JsonSchema.JsonBool) :*: "boss" -*>: self(pers),
     Iso[(Boolean, Person), User]((User.apply _).tupled)(u => (u.active, u.boss))
   )
@@ -42,8 +42,8 @@ final case class Admin(rights: List[String])         extends Role
     Iso[(String, Option[Role]), Person]((Person.apply _).tupled)(p => (p.name, p.role))
   )
 
-        implicit val primToEncoderNT = new (R.Prim ~> Encoder) {
-          def apply[A](fa: R.Prim[A]): Encoder[A] = { a =>
+        implicit val primToEncoderNT = new (R.Prim ~> EncoderA) {
+          def apply[A](fa: R.Prim[A]): EncoderA[A] = { a =>
             fa match {
               case JsonNumber => a.toString
               case JsonBool   => a.toString
