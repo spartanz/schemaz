@@ -6,6 +6,8 @@ import recursion._
 import monocle.Iso
 import scalaz.{ -\/, \/, \/-, ~> }
 
+import shapeless._
+
 trait Realisation {
   type Prim[A]
   type SumTermId
@@ -18,6 +20,8 @@ object Representation {
   type RIso[RA, A, B]
   type RSelf[A]
   type RSeq[A]
+  type RField[K, V]
+  type RBranch[K, V]
   type RRecord[RA, An, A]
   type RUnion[RA, An, A]
 }
@@ -85,12 +89,12 @@ final case class PrimSchemaF[F[_, _], A, Prim[_], SumTermId, ProductTermId](prim
 /**
  * A named branch of an union
  */
-final case class BranchF[F[_, _], RA, A, Prim[_], SumTermId, ProductTermId](
-  id: SumTermId,
+final case class BranchF[F[_, _], RA, I <: SumTermId: Witness.Aux, A, Prim[_], SumTermId, ProductTermId](
+  id: I,
   schema: F[RA, A]
-) extends SchemaF[Prim, SumTermId, ProductTermId, F, RA, A] {
+) extends SchemaF[Prim, SumTermId, ProductTermId, F, RBranch[I, RA], A] {
 
-  def hmap[G[_, _]](nt: F ~~> G): SchemaF[Prim, SumTermId, ProductTermId, G, RA, A] =
+  def hmap[G[_, _]](nt: F ~~> G): SchemaF[Prim, SumTermId, ProductTermId, G, RBranch[I, RA], A] =
     BranchF(id, nt(schema))
 }
 
@@ -110,12 +114,12 @@ sealed abstract case class UnionF[F[_, _], RA, A, AE, Prim[_], SumTermId, Produc
 /**
  * A named field of a record
  */
-final case class FieldF[F[_, _], RA, A, Prim[_], SumTermId, ProductTermId](
-  id: ProductTermId,
+final case class FieldF[F[_, _], RA, I <: ProductTermId: Witness.Aux, A, Prim[_], SumTermId, ProductTermId](
+  id: I,
   schema: F[RA, A]
-) extends SchemaF[Prim, SumTermId, ProductTermId, F, RA, A] {
+) extends SchemaF[Prim, SumTermId, ProductTermId, F, RField[I, RA], A] {
 
-  def hmap[G[_, _]](nt: F ~~> G): SchemaF[Prim, SumTermId, ProductTermId, G, RA, A] =
+  def hmap[G[_, _]](nt: F ~~> G): SchemaF[Prim, SumTermId, ProductTermId, G, RField[I, RA], A] =
     FieldF(id, nt(schema))
 }
 
@@ -241,10 +245,10 @@ object SchemaF {
     ): LabelledSum_[B \/ A, R2 + Repr, Prim, SumTermId, ProductTermId] = LabelledSum2(l, this)
   }
 
-  final private[schemaz] case class LabelledSum1[A, Repr, Prim[_], SumTermId, ProductTermId](
-    id: SumTermId,
+  final private[schemaz] case class LabelledSum1[A, Repr, I <: SumTermId: Witness.Aux, Prim[_], SumTermId, ProductTermId](
+    id: I,
     schema: FSchemaR[Prim, SumTermId, ProductTermId, Repr, A]
-  ) extends LabelledSum_[A, Repr, Prim, SumTermId, ProductTermId] {
+  ) extends LabelledSum_[A, RBranch[I, Repr], Prim, SumTermId, ProductTermId] {
 
     def toSchema =
       Fix(BranchF(id, schema))
@@ -268,10 +272,12 @@ object SchemaF {
       LabelledProduct2(l, this)
   }
 
-  final private[schemaz] case class LabelledProduct1[A, Repr, Prim[_], SumTermId, ProductTermId](
-    id: ProductTermId,
+  final private[schemaz] case class LabelledProduct1[A, Repr, I <: ProductTermId: Witness.Aux, Prim[
+    _
+  ], SumTermId, ProductTermId](
+    id: I,
     schema: FSchemaR[Prim, SumTermId, ProductTermId, Repr, A]
-  ) extends LabelledProduct_[A, Repr, Prim, SumTermId, ProductTermId] {
+  ) extends LabelledProduct_[A, RField[I, Repr], Prim, SumTermId, ProductTermId] {
 
     def toSchema =
       Fix(
@@ -313,13 +319,17 @@ trait SchemaModule[R <: Realisation] {
 
   type LabelledProduct[Repr, A] = LabelledProduct_[A, Repr, R.Prim, R.SumTermId, R.ProductTermId]
 
-  type ROne[F[_, _]]                = One[F, R.Prim, R.SumTermId, R.ProductTermId]
-  type RPrim[F[_, _], A]            = PrimSchemaF[F, A, R.Prim, R.SumTermId, R.ProductTermId]
-  type Sum[F[_, _], RA, RB, A, B]   = SumF[F, RA, RB, A, B, R.Prim, R.SumTermId, R.ProductTermId]
-  type Prod[F[_, _], RA, RB, A, B]  = ProdF[F, RA, RB, A, B, R.Prim, R.SumTermId, R.ProductTermId]
-  type Branch[F[_, _], RA, A]       = BranchF[F, RA, A, R.Prim, R.SumTermId, R.ProductTermId]
-  type Union[F[_, _], RA, AE, A]    = UnionF[F, RA, A, AE, R.Prim, R.SumTermId, R.ProductTermId]
-  type Field[F[_, _], RA, A]        = FieldF[F, RA, A, R.Prim, R.SumTermId, R.ProductTermId]
+  type ROne[F[_, _]]               = One[F, R.Prim, R.SumTermId, R.ProductTermId]
+  type RPrim[F[_, _], A]           = PrimSchemaF[F, A, R.Prim, R.SumTermId, R.ProductTermId]
+  type Sum[F[_, _], RA, RB, A, B]  = SumF[F, RA, RB, A, B, R.Prim, R.SumTermId, R.ProductTermId]
+  type Prod[F[_, _], RA, RB, A, B] = ProdF[F, RA, RB, A, B, R.Prim, R.SumTermId, R.ProductTermId]
+
+  type Branch[F[_, _], RA, I <: R.SumTermId, A] =
+    BranchF[F, RA, I, A, R.Prim, R.SumTermId, R.ProductTermId]
+  type Union[F[_, _], RA, AE, A] = UnionF[F, RA, A, AE, R.Prim, R.SumTermId, R.ProductTermId]
+
+  type Field[F[_, _], RA, I <: R.ProductTermId, A] =
+    FieldF[F, RA, I, A, R.Prim, R.SumTermId, R.ProductTermId]
   type Record[F[_, _], RA, An, A]   = RecordF[F, RA, A, An, R.Prim, R.SumTermId, R.ProductTermId]
   type Sequence[F[_, _], RA, A]     = SeqF[F, RA, A, R.Prim, R.SumTermId, R.ProductTermId]
   type IsoSchema[F[_, _], RA, A, B] = IsoSchemaF[F, RA, A, B, R.Prim, R.SumTermId, R.ProductTermId]
@@ -348,9 +358,11 @@ trait SchemaModule[R <: Realisation] {
     def :+: [R2, B](left: Schema[R2, B]): Schema[R2 + Repr, B \/ A] =
       Fix(new SumF(left, schema))
 
-    def -*>: (id: R.ProductTermId): LabelledProduct[Repr, A] = LabelledProduct1(id, schema)
+    def -*>: [I <: R.ProductTermId: Witness.Aux](id: I): LabelledProduct[RField[I, Repr], A] =
+      LabelledProduct1(id, schema)
 
-    def -+>: (id: R.SumTermId): LabelledSum[Repr, A] = LabelledSum1(id, schema)
+    def -+>: [I <: R.SumTermId: Witness.Aux](id: I): LabelledSum[RBranch[I, Repr], A] =
+      LabelledSum1(id, schema)
 
     def to[F[_, _]](implicit interpreter: RInterpreter[F]): F[_, A] = interpreter.interpret(schema)
 
