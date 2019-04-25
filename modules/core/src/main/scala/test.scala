@@ -1,6 +1,6 @@
 import scalaz._, schema._, Json._
 import monocle._
-import shapeless._
+
 import shapeless.syntax.singleton._
 
 object module extends JsonModule[JsonSchema.type] {
@@ -12,10 +12,8 @@ object module extends JsonModule[JsonSchema.type] {
   final case class User(active: Boolean, boss: Person) extends Role
   final case class Admin(rights: List[String])         extends Role
 
-  val active = "active".narrow
-
   def user(pers: BareSchema[Person]) = record(
-    active -*>: prim(JsonSchema.JsonBool) :*: "boss".narrow -*>: self(pers),
+    "active".narrow -*>: prim(JsonSchema.JsonBool) :*: "boss".narrow -*>: self(pers),
     Iso[(Boolean, Person), User]((User.apply _).tupled)(u => (u.active, u.boss))
   )
 
