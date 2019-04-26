@@ -5,7 +5,7 @@ import recursion._
 
 import monocle.Iso
 import scalaz.{ -\/, \/, \/-, ~> }
-
+import shapeless._
 
 trait Realisation {
   type Prim[A]
@@ -14,11 +14,11 @@ trait Realisation {
 }
 
 object Representation {
-  type +[A, B]
-  type *[A, B]
+  type RSum[RA, A, RB, B]
+  type RProd[RA, A, RB, B]
   type RIso[RA, A, B]
   type RSelf[A]
-  type RSeq[A]
+  type RSeq[R, A]
   type -*>[K, V]
   type -+>[K, V]
   type RRecord[RA, An, A]
@@ -50,9 +50,11 @@ final case class One[F[_, _], Prim[_], SumTermId, ProductTermId]()
 final case class SumF[F[_, _], RA, RB, A, B, Prim[_], SumTermId, ProductTermId](
   left: F[RA, A],
   right: F[RB, B]
-) extends SchemaF[Prim, SumTermId, ProductTermId, F, RA + RB, A \/ B] {
+) extends SchemaF[Prim, SumTermId, ProductTermId, F, RSum[RA, A, RB, B], A \/ B] {
 
-  def hmap[G[_, _]](nt: F ~~> G): SchemaF[Prim, SumTermId, ProductTermId, G, RA + RB, A \/ B] =
+  def hmap[G[_, _]](
+    nt: F ~~> G
+  ): SchemaF[Prim, SumTermId, ProductTermId, G, RSum[RA, A, RB, B], A \/ B] =
     SumF(
       nt(left),
       nt(right)
@@ -66,9 +68,11 @@ final case class SumF[F[_, _], RA, RB, A, B, Prim[_], SumTermId, ProductTermId](
 final case class ProdF[F[_, _], RA, RB, A, B, Prim[_], SumTermId, ProductTermId](
   left: F[RA, A],
   right: F[RB, B]
-) extends SchemaF[Prim, SumTermId, ProductTermId, F, RA * RB, (A, B)] {
+) extends SchemaF[Prim, SumTermId, ProductTermId, F, RProd[RA, A, RB, B], (A, B)] {
 
-  def hmap[G[_, _]](nt: F ~~> G): SchemaF[Prim, SumTermId, ProductTermId, G, RA * RB, (A, B)] =
+  def hmap[G[_, _]](
+    nt: F ~~> G
+  ): SchemaF[Prim, SumTermId, ProductTermId, G, RProd[RA, A, RB, B], (A, B)] =
     ProdF(nt(left), nt(right))
   override def toString: String = s"$left :*: $right"
 }
@@ -141,9 +145,9 @@ sealed abstract case class RecordF[F[_, _], RA, A, AP, Prim[_], SumTermId, Produ
  * A sequence
  */
 final case class SeqF[F[_, _], RA, A, Prim[_], SumTermId, ProductTermId](element: F[RA, A])
-    extends SchemaF[Prim, SumTermId, ProductTermId, F, RSeq[RA], List[A]] {
+    extends SchemaF[Prim, SumTermId, ProductTermId, F, RSeq[RA, A], List[A]] {
 
-  def hmap[G[_, _]](nt: F ~~> G): SchemaF[Prim, SumTermId, ProductTermId, G, RSeq[RA], List[A]] =
+  def hmap[G[_, _]](nt: F ~~> G): SchemaF[Prim, SumTermId, ProductTermId, G, RSeq[RA, A], List[A]] =
     SeqF(nt(element))
 }
 
@@ -241,7 +245,8 @@ object SchemaF {
 
     def :+: [R2, B](
       l: LabelledSum_[B, R2, Prim, SumTermId, ProductTermId]
-    ): LabelledSum_[B \/ A, R2 + Repr, Prim, SumTermId, ProductTermId] = LabelledSum2(l, this)
+    ): LabelledSum_[B \/ A, RSum[R2, B, Repr, A], Prim, SumTermId, ProductTermId] =
+      LabelledSum2(l, this)
   }
 
   final private[schemaz] case class LabelledSum1[A, Repr, I <: SumTermId, Prim[_], SumTermId, ProductTermId](
@@ -257,7 +262,7 @@ object SchemaF {
   final private[schemaz] case class LabelledSum2[A, B, R1, R2, Prim[_], SumTermId, ProductTermId](
     l: LabelledSum_[A, R1, Prim, SumTermId, ProductTermId],
     r: LabelledSum_[B, R2, Prim, SumTermId, ProductTermId]
-  ) extends LabelledSum_[A \/ B, R1 + R2, Prim, SumTermId, ProductTermId] {
+  ) extends LabelledSum_[A \/ B, RSum[R1, A, R2, B], Prim, SumTermId, ProductTermId] {
     def toSchema = Fix(new SumF(l.toSchema, r.toSchema))
 
   }
@@ -267,7 +272,7 @@ object SchemaF {
 
     def :*: [R2, B](
       l: LabelledProduct_[B, R2, Prim, SumTermId, ProductTermId]
-    ): LabelledProduct_[(B, A), R2 * Repr, Prim, SumTermId, ProductTermId] =
+    ): LabelledProduct_[(B, A), RProd[R2, B, Repr, A], Prim, SumTermId, ProductTermId] =
       LabelledProduct2(l, this)
   }
 
@@ -291,7 +296,7 @@ object SchemaF {
   final private[schemaz] case class LabelledProduct2[A, B, R1, R2, Prim[_], SumTermId, ProductTermId](
     l: LabelledProduct_[A, R1, Prim, SumTermId, ProductTermId],
     r: LabelledProduct_[B, R2, Prim, SumTermId, ProductTermId]
-  ) extends LabelledProduct_[(A, B), R1 * R2, Prim, SumTermId, ProductTermId] {
+  ) extends LabelledProduct_[(A, B), RProd[R1, A, R2, B], Prim, SumTermId, ProductTermId] {
     def toSchema = Fix(new ProdF(l.toSchema, r.toSchema))
 
   }
@@ -351,10 +356,10 @@ trait SchemaModule[R <: Realisation] {
 
   implicit final class SchemaSyntax[Repr, A](schema: Schema[Repr, A]) {
 
-    def :*: [R2, B](left: Schema[R2, B]): Schema[R2 * Repr, (B, A)] =
+    def :*: [R2, B](left: Schema[R2, B]): Schema[RProd[R2, B, Repr, A], (B, A)] =
       Fix(new ProdF(left, schema))
 
-    def :+: [R2, B](left: Schema[R2, B]): Schema[R2 + Repr, B \/ A] =
+    def :+: [R2, B](left: Schema[R2, B]): Schema[RSum[R2, B, Repr, A], B \/ A] =
       Fix(new SumF(left, schema))
 
     def -*>: [I <: R.ProductTermId](
@@ -410,7 +415,7 @@ trait SchemaModule[R <: Realisation] {
 
   final def optional[Repr, A](
     aSchema: Schema[Repr, A]
-  ): Schema[RIso[Repr + Unit, A \/ Unit, Option[A]], Option[A]] =
+  ): Schema[RIso[RSum[Repr, A, Unit, Unit], A \/ Unit, Option[A]], Option[A]] =
     iso(
       Fix(SumF(aSchema, unit)),
       Iso[A \/ Unit, Option[A]](_.swap.toOption)(_.fold[A \/ Unit](\/-(()))(-\/(_)))
@@ -432,7 +437,7 @@ trait SchemaModule[R <: Realisation] {
       ](terms.toSchema, isoA) {}
     )
 
-  final def seq[Repr, A](element: Schema[Repr, A]): Schema[RSeq[Repr], List[A]] =
+  final def seq[Repr, A](element: Schema[Repr, A]): Schema[RSeq[Repr, A], List[A]] =
     Fix(SeqF(element))
 
   final def iso[Repr, A0, A](
@@ -445,4 +450,70 @@ trait SchemaModule[R <: Realisation] {
     Fix(
       SelfReference(() => root, new (Schema ~~> Schema) { def apply[R0, X](a: Schema[R0, X]) = a })
     )
+
+}
+
+trait AtPath[R, A, P <: HList] {
+  type RO
+  type O
+}
+
+trait LowPrioAtPath0 {
+
+  protected def ev[R, A, P <: HList, RT, T]: Any => AtPath.Aux[R, A, P, RT, T] =
+    (_ => new AtPath[R, A, P] { type RO = RT; type O = T })
+
+  implicit def atSumLeft[R, A, RB, B, P <: HList, RT, AT](
+    implicit rest: AtPath.Aux[R, A, P, RT, AT]
+  ): AtPath.Aux[RSum[RB, B, R, A], B \/ A, P, RT, AT] = ev(rest)
+
+  implicit def atProdLeft[R, A, RB, B, P <: HList, RT, AT](
+    implicit rest: AtPath.Aux[R, A, P, RT, AT]
+  ): AtPath.Aux[RProd[RB, B, R, A], (B, A), P, RT, AT] = ev(rest)
+}
+
+trait LowPrioAtPath extends LowPrioAtPath0 {
+  implicit def atField[N, R, A, T <: HList, RT, AT](
+    implicit rest: AtPath.Aux[R, A, T, RT, AT]
+  ): AtPath.Aux[N -*> R, A, N :: T, RT, AT] = ev(rest)
+
+  implicit def atBranch[N, R, A, T <: HList, RT, AT](
+    implicit rest: AtPath.Aux[R, A, T, RT, AT]
+  ): AtPath.Aux[N -+> R, A, N :: T, RT, AT] = ev(rest)
+
+  implicit def atRecord[R, An, A, P <: HList, RT, AT](
+    implicit rest: AtPath.Aux[R, An, P, RT, AT]
+  ): AtPath.Aux[RRecord[R, An, A], A, P, RT, AT] = ev(rest)
+
+  implicit def atUnion[R, Ae, A, P <: HList, RT, AT](
+    implicit rest: AtPath.Aux[R, Ae, P, RT, AT]
+  ): AtPath.Aux[RUnion[R, Ae, A], A, P, RT, AT] = ev(rest)
+
+  implicit def atIso[R, A0, A, P <: HList, RT, AT](
+    implicit rest: AtPath.Aux[R, A0, P, RT, AT]
+  ): AtPath.Aux[RIso[R, A0, A], A, P, RT, AT] = ev(rest)
+
+  implicit def atSeq[R, A, P <: HList, RT, AT](
+    implicit rest: AtPath.Aux[R, A, P, RT, AT]
+  ): AtPath.Aux[RSeq[R, A], A, P, RT, AT] = ev(rest)
+
+  implicit def atSumRight[R, A, RB, B, P <: HList, RT, AT](
+    implicit rest: AtPath.Aux[R, A, P, RT, AT]
+  ): AtPath.Aux[RSum[R, A, RB, B], A \/ B, P, RT, AT] = ev(rest)
+
+  implicit def atProdRight[R, A, RB, B, P <: HList, RT, AT](
+    implicit rest: AtPath.Aux[R, A, P, RT, AT]
+  ): AtPath.Aux[RProd[R, A, RB, B], (A, B), P, RT, AT] = ev(rest)
+}
+
+object AtPath extends LowPrioAtPath {
+
+  type Aux[R, A, P <: HList, RT, AT] = AtPath[R, A, P] { type RO = RT; type O = AT }
+
+  def apply[S[_, _], R, A, P <: HList, RT, AT](schema: S[R, A], path: P, lookup: S[RT, AT])(
+    implicit atPath: Aux[R, A, P, RT, AT]
+  ): Aux[R, A, P, RT, AT] = ev((schema, path, lookup, atPath))
+
+  implicit def atRoot[R, A, P <: HNil]: Aux[R, A, P, R, A] = ev(())
+
 }

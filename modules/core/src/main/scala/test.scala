@@ -1,6 +1,7 @@
 import scalaz._, schema._, Json._
 import monocle._
 
+import shapeless._
 import shapeless.syntax.singleton._
 
 object module extends JsonModule[JsonSchema.type] {
@@ -56,6 +57,23 @@ object module extends JsonModule[JsonSchema.type] {
 
   val p = person(person(null))
 
+  val path = "role".narrow :: "user".narrow :: "active".narrow :: HNil
+
+  def atPath[R, A, P <: HList, RT, AT](schema: Schema[R, A], path: P, expected: Schema[RT, AT])(
+    implicit ev: AtPath.Aux[R, A, P, RT, AT]
+  ) = AtPath(schema, path, expected)
+
+  type Name = Witness.`"name"`.T
+  type Foo  = Witness.`"foo"`.T
+
+  val lookup =
+    atPath(
+      p,
+      path,
+      prim(R.JsonBool)
+    )
+
   val burns = Person("Montgommery Burns", Some(Admin(List("billionaire", "evil mastermind"))))
   val homer = Person("Homer Simpson", Some(User(true, burns)))
+
 }
