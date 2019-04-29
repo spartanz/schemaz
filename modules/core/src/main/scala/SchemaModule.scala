@@ -351,6 +351,186 @@ trait SchemaModule[R <: Realisation] {
 
   }
 
+  trait AtPath[Repr, A, P <: HList] {
+    type RO
+    type O
+
+    def select(schema: Schema[Repr, A]): Schema[RO, O]
+  }
+
+  trait LowPrioAtPath0 {
+
+    /*protected def ev[S[_,_], R, A, P <: HList, RT, T]: Any => AtPath.Aux[R, A, P, RT, T] =
+     (
+     _ => new AtPath[R, A, P] {
+     type RO = RT
+     type O = T
+
+     }
+     )*/
+
+    //TODO: Something with the left/right naming is not correct here
+    implicit def atSumLeft[
+      Repr,
+      A,
+      RB,
+      B,
+      P <: HList,
+      RT,
+      AT
+    ](
+      implicit rest: AtPath.Aux[Repr, A, P, RT, AT]
+    ): AtPath.Aux[RSum[RB, B, Repr, A], B \/ A, P, RT, AT] =
+      new AtPath[RSum[RB, B, Repr, A], B \/ A, P] {
+        override type RO = RT
+        override type O  = AT
+
+        override def select(schema: Schema[RSum[RB, B, Repr, A], B \/ A]): Schema[RT, AT] = {
+          val left = schema.unFix.asInstanceOf[Sum[Schema, RB, Repr, B, A]].right
+          rest.select(left)
+        }
+      }
+
+    implicit def atProdLeft[Repr, A, RB, B, P <: HList, RT, AT](
+      implicit rest: AtPath.Aux[Repr, A, P, RT, AT]
+    ): AtPath.Aux[RProd[RB, B, Repr, A], (B, A), P, RT, AT] =
+      new AtPath[RProd[RB, B, Repr, A], (B, A), P] {
+        override type RO = RT
+        override type O  = AT
+
+        override def select(schema: Schema[RProd[RB, B, Repr, A], (B, A)]): Schema[RT, AT] = {
+          val left = schema.unFix.asInstanceOf[Prod[Schema, RB, Repr, B, A]].right
+          rest.select(left)
+        }
+
+      }
+  }
+
+  trait LowPrioAtPath extends LowPrioAtPath0 {
+    implicit def atField[N <: R.ProductTermId, Repr, A, T <: HList, RT, AT](
+      implicit rest: AtPath.Aux[Repr, A, T, RT, AT]
+    ): AtPath.Aux[N -*> Repr, A, N :: T, RT, AT] = new AtPath[N -*> Repr, A, N :: T] {
+      override type RO = RT
+      override type O  = AT
+
+      override def select(schema: Schema[N -*> Repr, A]): Schema[RT, AT] = {
+        val inner = schema.unFix.asInstanceOf[Field[Schema, Repr, N, A]].schema
+        rest.select(inner)
+      }
+    }
+
+    implicit def atBranch[N <: R.SumTermId, Repr, A, T <: HList, RT, AT](
+      implicit rest: AtPath.Aux[Repr, A, T, RT, AT]
+    ): AtPath.Aux[N -+> Repr, A, N :: T, RT, AT] = new AtPath[N -+> Repr, A, N :: T] {
+      override type RO = RT
+      override type O  = AT
+
+      override def select(schema: Schema[N -+> Repr, A]): Schema[RT, AT] = {
+        val inner = schema.unFix.asInstanceOf[Branch[Schema, Repr, N, A]].schema
+        rest.select(inner)
+      }
+    }
+
+    implicit def atRecord[Repr, An, A, P <: HList, RT, AT](
+      implicit rest: AtPath.Aux[Repr, An, P, RT, AT]
+    ): AtPath.Aux[RRecord[Repr, An, A], A, P, RT, AT] = new AtPath[RRecord[Repr, An, A], A, P] {
+      override type RO = RT
+      override type O  = AT
+
+      override def select(schema: Schema[RRecord[Repr, An, A], A]): Schema[RT, AT] = {
+        val inner = schema.unFix.asInstanceOf[Record[Schema, Repr, An, A]].fields
+        rest.select(inner)
+      }
+    }
+
+    implicit def atUnion[Repr, Ae, A, P <: HList, RT, AT](
+      implicit rest: AtPath.Aux[Repr, Ae, P, RT, AT]
+    ): AtPath.Aux[RUnion[Repr, Ae, A], A, P, RT, AT] = new AtPath[RUnion[Repr, Ae, A], A, P] {
+      override type RO = RT
+      override type O  = AT
+
+      override def select(schema: Schema[RUnion[Repr, Ae, A], A]): Schema[RT, AT] = {
+        val inner = schema.unFix.asInstanceOf[Union[Schema, Repr, Ae, A]].choices
+        rest.select(inner)
+      }
+    }
+
+    implicit def atIso[Repr, A0, A, P <: HList, RT, AT](
+      implicit rest: AtPath.Aux[Repr, A0, P, RT, AT]
+    ): AtPath.Aux[RIso[Repr, A0, A], A, P, RT, AT] = new AtPath[RIso[Repr, A0, A], A, P] {
+      override type RO = RT
+      override type O  = AT
+
+      override def select(schema: Schema[RIso[Repr, A0, A], A]): Schema[RT, AT] = {
+        val inner = schema.unFix.asInstanceOf[IsoSchema[Schema, Repr, A0, A]].base
+        rest.select(inner)
+      }
+    }
+
+    implicit def atSeq[Repr, A, P <: HList, RT, AT](
+      implicit rest: AtPath.Aux[Repr, A, P, RT, AT]
+    ): AtPath.Aux[RSeq[Repr, A], A, P, RT, AT] = new AtPath[RSeq[Repr, A], A, P] {
+      override type RO = RT
+      override type O  = AT
+
+      override def select(schema: Schema[RSeq[Repr, A], A]): Schema[RT, AT] = {
+        val inner = schema.unFix.asInstanceOf[Sequence[Schema, Repr, A]].element
+        rest.select(inner)
+      }
+    }
+
+    implicit def atSumRight[Repr, A, RB, B, P <: HList, RT, AT](
+      implicit rest: AtPath.Aux[Repr, A, P, RT, AT]
+    ): AtPath.Aux[RSum[Repr, A, RB, B], A \/ B, P, RT, AT] =
+      new AtPath[RSum[Repr, A, RB, B], A \/ B, P] {
+        override type RO = RT
+        override type O  = AT
+
+        override def select(schema: Schema[RSum[Repr, A, RB, B], A \/ B]): Schema[RT, AT] = {
+          val left = schema.unFix.asInstanceOf[Sum[Schema, Repr, RB, A, B]].left
+          rest.select(left)
+        }
+      }
+
+    implicit def atProdRight[Repr, A, RB, B, P <: HList, RT, AT](
+      implicit rest: AtPath.Aux[Repr, A, P, RT, AT]
+    ): AtPath.Aux[RProd[Repr, A, RB, B], (A, B), P, RT, AT] =
+      new AtPath[RProd[Repr, A, RB, B], (A, B), P] {
+        override type RO = RT
+        override type O  = AT
+
+        override def select(schema: Schema[RProd[Repr, A, RB, B], (A, B)]): Schema[RT, AT] = {
+          val left = schema.unFix.asInstanceOf[Prod[Schema, Repr, RB, A, B]].left
+          rest.select(left)
+        }
+
+      }
+  }
+
+  object AtPath extends LowPrioAtPath {
+
+    type Aux[Repr, A, P <: HList, RT, AT] = AtPath[Repr, A, P] {
+      type RO = RT
+      type O  = AT
+    }
+
+    def apply[Repr, A, P <: HList, RT, AT](schema: Schema[Repr, A], path: P)(
+      implicit atPath: Aux[Repr, A, P, RT, AT]
+    ): Aux[Repr, A, P, RT, AT] = {
+      identity(schema)
+      identity(path)
+      atPath
+    }
+
+    implicit def atRoot[Repr, A, P <: HNil]: Aux[Repr, A, P, Repr, A] = new AtPath[Repr, A, P] {
+      override type RO = Repr
+      override type O  = A
+
+      override def select(schema: Schema[Repr, A]): Schema[Repr, A] = schema
+    }
+
+  }
+
   ////////////////
   // Public API
   ////////////////
@@ -451,70 +631,5 @@ trait SchemaModule[R <: Realisation] {
     Fix(
       SelfReference(() => root, new (Schema ~~> Schema) { def apply[R0, X](a: Schema[R0, X]) = a })
     )
-
-}
-
-trait AtPath[R, A, P <: HList] {
-  type RO
-  type O
-}
-
-trait LowPrioAtPath0 {
-
-  protected def ev[R, A, P <: HList, RT, T]: Any => AtPath.Aux[R, A, P, RT, T] =
-    (_ => new AtPath[R, A, P] { type RO = RT; type O = T })
-
-  implicit def atSumLeft[R, A, RB, B, P <: HList, RT, AT](
-    implicit rest: AtPath.Aux[R, A, P, RT, AT]
-  ): AtPath.Aux[RSum[RB, B, R, A], B \/ A, P, RT, AT] = ev(rest)
-
-  implicit def atProdLeft[R, A, RB, B, P <: HList, RT, AT](
-    implicit rest: AtPath.Aux[R, A, P, RT, AT]
-  ): AtPath.Aux[RProd[RB, B, R, A], (B, A), P, RT, AT] = ev(rest)
-}
-
-trait LowPrioAtPath extends LowPrioAtPath0 {
-  implicit def atField[N, R, A, T <: HList, RT, AT](
-    implicit rest: AtPath.Aux[R, A, T, RT, AT]
-  ): AtPath.Aux[N -*> R, A, N :: T, RT, AT] = ev(rest)
-
-  implicit def atBranch[N, R, A, T <: HList, RT, AT](
-    implicit rest: AtPath.Aux[R, A, T, RT, AT]
-  ): AtPath.Aux[N -+> R, A, N :: T, RT, AT] = ev(rest)
-
-  implicit def atRecord[R, An, A, P <: HList, RT, AT](
-    implicit rest: AtPath.Aux[R, An, P, RT, AT]
-  ): AtPath.Aux[RRecord[R, An, A], A, P, RT, AT] = ev(rest)
-
-  implicit def atUnion[R, Ae, A, P <: HList, RT, AT](
-    implicit rest: AtPath.Aux[R, Ae, P, RT, AT]
-  ): AtPath.Aux[RUnion[R, Ae, A], A, P, RT, AT] = ev(rest)
-
-  implicit def atIso[R, A0, A, P <: HList, RT, AT](
-    implicit rest: AtPath.Aux[R, A0, P, RT, AT]
-  ): AtPath.Aux[RIso[R, A0, A], A, P, RT, AT] = ev(rest)
-
-  implicit def atSeq[R, A, P <: HList, RT, AT](
-    implicit rest: AtPath.Aux[R, A, P, RT, AT]
-  ): AtPath.Aux[RSeq[R, A], A, P, RT, AT] = ev(rest)
-
-  implicit def atSumRight[R, A, RB, B, P <: HList, RT, AT](
-    implicit rest: AtPath.Aux[R, A, P, RT, AT]
-  ): AtPath.Aux[RSum[R, A, RB, B], A \/ B, P, RT, AT] = ev(rest)
-
-  implicit def atProdRight[R, A, RB, B, P <: HList, RT, AT](
-    implicit rest: AtPath.Aux[R, A, P, RT, AT]
-  ): AtPath.Aux[RProd[R, A, RB, B], (A, B), P, RT, AT] = ev(rest)
-}
-
-object AtPath extends LowPrioAtPath {
-
-  type Aux[R, A, P <: HList, RT, AT] = AtPath[R, A, P] { type RO = RT; type O = AT }
-
-  def apply[S[_, _], R, A, P <: HList, RT, AT](schema: S[R, A], path: P, lookup: S[RT, AT])(
-    implicit atPath: Aux[R, A, P, RT, AT]
-  ): Aux[R, A, P, RT, AT] = ev((schema, path, lookup, atPath))
-
-  implicit def atRoot[R, A, P <: HNil]: Aux[R, A, P, R, A] = ev(())
 
 }
