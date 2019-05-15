@@ -227,6 +227,9 @@ object IsRecord {
 
   implicit def productIsRecord[L: IsRecord, R: IsRecord, X, Y]: IsRecord[RProd[L, X, R, Y]] =
     new IsRecord[RProd[L, X, R, Y]] {}
+
+  implicit def isoIsRecord[R: IsRecord, A0, A]: IsRecord[RIso[R, A0, A]] =
+    new IsRecord[RIso[R, A0, A]] {}
 }
 
 @implicitNotFound(

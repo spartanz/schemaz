@@ -1,10 +1,12 @@
-import scalaz._, schema._, Json._
+import scalaz._, schema._, Json._ //, Representation._
 import monocle._
 
 import shapeless._
 import shapeless.syntax.singleton._
 
-object module extends JsonModule[JsonSchema.type] {
+object module extends JsonModule[JsonSchema.type] with HasMigration[JsonSchema.type] {
+
+  import Transform._
 
   val R = JsonSchema
   import R._
@@ -66,7 +68,36 @@ object module extends JsonModule[JsonSchema.type] {
 
 //  import AtPath._
 
-  val lookup = AtPath(p, path)
+//  val lookup = AtPath(p, path)
+
+  val sp = "bar".narrow -*>: prim(JsonSchema.JsonString) :*: "foo".narrow -*>: prim(
+    JsonSchema.JsonBool
+  )
+  val s  = record(sp, Iso.id[(String, Boolean)])
+  val s2 = prim(JsonSchema.JsonNumber)
+
+  val u = union("s".narrow -+>: s :+: "s2".narrow -+>: s2, Iso.id[(String, Boolean) \/ BigDecimal])
+
+  val trans = ((_: Schema[Boolean, Boolean]) => iso(unit, Iso[Unit, Boolean](_ => true)(_ => ())))
+
+  val trans2 = (
+    (_: Schema[BigDecimal, BigDecimal]) =>
+      iso(unit, Iso[Unit, BigDecimal](_ => BigDecimal(0))(_ => ()))
+    )
+
+  val t = Transform(
+    u,
+    "s".narrow :: "foo".narrow :: HNil,
+    trans
+  )
+
+  val t2 = Transform(
+    t,
+    "s2".narrow :: HNil,
+    trans2
+  )
+
+  val added = new AddField("s".narrow :: "foo".narrow :: HNil, prim(JsonSchema.JsonBool), true)(u)
 
   val burns = Person("Montgommery Burns", Some(Admin(List("billionaire", "evil mastermind"))))
   val homer = Person("Homer Simpson", Some(User(true, burns)))
