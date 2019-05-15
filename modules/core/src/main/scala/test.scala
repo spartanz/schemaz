@@ -1,37 +1,33 @@
-package scalaz
+import scalaz._, schema._, Json._ //, Representation._
+import monocle._
 
-package schema
+import shapeless._
+import shapeless.syntax.singleton._
 
-import monocle.Iso
+object module extends JsonModule[JsonSchema.type] with HasMigration[JsonSchema.type] {
 
-final case class Person(name: String, role: Option[Role])
-sealed trait Role
-final case class User(active: Boolean, boss: Person) extends Role
-final case class Admin(rights: List[String])         extends Role
+  import Transform._
 
-final case class Foo(s: String, b: Boolean, i: BigDecimal)
-
-trait TestModule extends JsonModule[JsonSchema.type] {
   val R = JsonSchema
+  import R._
+  final case class Person(name: String, role: Option[Role])
+  sealed trait Role
+  final case class User(active: Boolean, boss: Person) extends Role
+  final case class Admin(rights: List[String])         extends Role
 
-  val boss       = Person("Alfred", None)
-  val testPerson = Person("Alfred the Second", Some(User(true, boss)))
-
-  type PersonTuple = (Seq[Char], Option[Role])
-
-  def user[Repr](pers: Schema[Repr, Person]) = record(
-    "active" -*>: prim(JsonSchema.JsonBool) :*: "boss" -*>: self[Person](pers),
+  def user(pers: BareSchema[Person]) = record(
+    "active".narrow -*>: prim(JsonSchema.JsonBool) :*: "boss".narrow -*>: self(pers),
     Iso[(Boolean, Person), User]((User.apply _).tupled)(u => (u.active, u.boss))
   )
 
   val admin = record(
-    "rights" -*>: seq(prim(JsonSchema.JsonString)),
+    "rights".narrow -*>: seq(prim(JsonSchema.JsonString)),
     Iso[List[String], Admin](Admin.apply)(_.rights)
   )
 
-  def role[Repr](pers: Schema[Repr, Person]) = union(
-    "user" -+>: user(pers) :+:
-      "admin" -+>: admin,
+  def role(pers: Schema_[Person]) = union(
+    "user".narrow -+>: user(pers) :+:
+      "admin".narrow -+>: admin,
     Iso[User \/ Admin, Role] {
       case -\/(u) => u
       case \/-(a) => a
@@ -42,95 +38,68 @@ trait TestModule extends JsonModule[JsonSchema.type] {
   )
 
   def person(pers: Schema_[Person]) = record(
-    "name" -*>: prim(JsonSchema.JsonString) :*:
-      "role" -*>: optional(
-      role[pers.Repr](pers)
+    "name".narrow -*>: prim(JsonSchema.JsonString) :*:
+      "role".narrow -*>: optional(
+      role(pers)
     ),
     Iso[(String, Option[Role]), Person]((Person.apply _).tupled)(p => (p.name, p.role))
   )
 
-  val personSchema = person(person(null))
+  implicit val primToEncoderNT = new (R.Prim ~> EncoderA) {
 
-  implicit val primToEncoderNT = new (JsonSchema.JsonPrim ~> Json.Encoder) {
-
-    def apply[A](fa: JsonSchema.JsonPrim[A]): Json.Encoder[A] = { a =>
+    def apply[A](fa: R.Prim[A]): EncoderA[A] = { a =>
       fa match {
-        case JsonSchema.JsonNumber => a.toString
-        case JsonSchema.JsonBool   => a.toString
-        case JsonSchema.JsonString => s""""$a""""
-        case JsonSchema.JsonNull   => "null"
+        case JsonNumber => a.toString
+        case JsonBool   => a.toString
+        case JsonString => s""""$a""""
+        case JsonNull   => "null"
       }
     }
   }
 
-  def personDerivation[TRepr](
-    ref: => Derivation[Schema, personSchema.Repr, Person, TRepr, Person]
-  ) =
-    DerivationTo[Schema].rec(personSchema)(
-      (d, personFields) =>
-        d.prod(personFields)(
-          (d, l) => d.const(l)(unit),
-          (d, r) =>
-            d.field(r)(
-              (d, b) =>
-                d.iso(b)(
-                  (d, b) =>
-                    d.sum(b)(
-                      (d, l) =>
-                        d.union(l)(
-                          (d, b) =>
-                            d.sum(b)(
-                              (d, l) =>
-                                d.branch(l)(
-                                  (d, b) =>
-                                    d.rec(b)(
-                                      (d, userFields) =>
-                                        d.prod(userFields)(
-                                          (d, l) => d.const(l)(l),
-                                          (d, r) =>
-                                            d.field(r)(
-                                              (d, b) => d.const(b)(self(ref.to))
-                                            )(
-                                              (id, x) => (id -*>: x).toSchema
-                                            )
-                                        )(
-                                          (l, r) => l :*: r
-                                        )
-                                    )(
-                                      (iso, x) => recordUnsafe(x, iso)
-                                    )
-                                )(
-                                  (id, x) => (id -+>: x).toSchema
-                                ),
-                              (d, r) => d.const(r)(r)
-                            )(
-                              (l, r) => l :+: r
-                            )
-                        )(
-                          (iso, x) => unionUnsafe(x, iso)
-                        ),
-                      (d, r) => d.const(r)(r)
-                    )(
-                      (l, r) => l :+: r
-                    )
-                )(
-                  (isoI, x) => iso(x, isoI)
-                )
-            )(
-              (id, x) => (id -*>: x).toSchema
-            )
-        )(
-          (_, r) => r
-        )
-    )(
-      (_, x) =>
-        recordUnsafe(
-          x,
-          Iso[Option[Role], Person](Person("default", _))(_.role)
-        )
+  val p = person(person(null))
+
+  val path = "role".narrow :: "user".narrow :: "active".narrow :: HNil
+
+  //val path = "role".narrow :: HNil
+
+  type Name = Witness.`"name"`.T
+  type Foo  = Witness.`"foo"`.T
+
+//  import AtPath._
+
+//  val lookup = AtPath(p, path)
+
+  val sp = "bar".narrow -*>: prim(JsonSchema.JsonString) :*: "foo".narrow -*>: prim(
+    JsonSchema.JsonBool
+  )
+  val s  = record(sp, Iso.id[(String, Boolean)])
+  val s2 = prim(JsonSchema.JsonNumber)
+
+  val u = union("s".narrow -+>: s :+: "s2".narrow -+>: s2, Iso.id[(String, Boolean) \/ BigDecimal])
+
+  val trans = ((_: Schema[Boolean, Boolean]) => iso(unit, Iso[Unit, Boolean](_ => true)(_ => ())))
+
+  val trans2 = (
+    (_: Schema[BigDecimal, BigDecimal]) =>
+      iso(unit, Iso[Unit, BigDecimal](_ => BigDecimal(0))(_ => ()))
     )
 
-  val newPerson = personDerivation(personDerivation(null)).to
-  val newEnc    = newPerson.to[Json.Encoder]
+  val t = Transform(
+    u,
+    "s".narrow :: "foo".narrow :: HNil,
+    trans
+  )
+
+  val t2 = Transform(
+    t,
+    "s2".narrow :: HNil,
+    trans2
+  )
+
+  val added = new AddField("s".narrow :: "foo".narrow :: HNil, prim(JsonSchema.JsonBool), true)(u)
+
+  val burns = Person("Montgommery Burns", Some(Admin(List("billionaire", "evil mastermind"))))
+  val homer = Person("Homer Simpson", Some(User(true, burns)))
 
 }
