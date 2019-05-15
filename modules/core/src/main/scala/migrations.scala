@@ -14,6 +14,23 @@ trait HasTransform[R <: Realisation] extends SchemaModule[R] {
     def apply(transformation: Schema[R0, T] => Schema[R1, T]): Schema[RA, A] => Schema[NR, A]
   }
 
+  sealed abstract class Partial[RA, A, P <: HList, R0, T](s: Schema[RA, A], path: P)(
+    implicit atP: AtPath.Aux[RA, A, P, R0, T]
+  ) {
+    identity(atP)
+
+    def transform[R1, NR](trans: Schema[R0, T] => Schema[R1, T])(
+      implicit t: Transform.Aux[RA, A, P, R0, R1, T, NR]
+    ): Schema[t.NR, A] = Transform.apply(s, path, trans)
+  }
+
+  object Partial {
+
+    def apply[RA, A, P <: HList, R0, T](s: Schema[RA, A], path: P)(
+      implicit atP: AtPath.Aux[RA, A, P, R0, T]
+    ): Partial[RA, A, P, R0, T] = new Partial(s, path)(atP) {}
+  }
+
   object Transform extends LowPrioTransform {
 
     def apply[RA, A, P <: HList, R0, R1, T, NR](

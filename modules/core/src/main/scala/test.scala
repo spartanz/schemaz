@@ -65,6 +65,7 @@ object module extends JsonModule[JsonSchema.type] with HasMigration[JsonSchema.t
 
   type Name = Witness.`"name"`.T
   type Foo  = Witness.`"foo"`.T
+  type Bar  = Witness.`"bar"`.T
 
 //  import AtPath._
 
@@ -78,10 +79,11 @@ object module extends JsonModule[JsonSchema.type] with HasMigration[JsonSchema.t
 
   val u = union("s".narrow -+>: s :+: "s2".narrow -+>: s2, Iso.id[(String, Boolean) \/ BigDecimal])
 
-  val trans = ((_: Schema[Boolean, Boolean]) => iso(unit, Iso[Unit, Boolean](_ => true)(_ => ())))
+  val trans =
+    ((_: Schema[R.Prim[Boolean], Boolean]) => iso(unit, Iso[Unit, Boolean](_ => true)(_ => ())))
 
   val trans2 = (
-    (_: Schema[BigDecimal, BigDecimal]) =>
+    (_: Schema[R.Prim[BigDecimal], BigDecimal]) =>
       iso(unit, Iso[Unit, BigDecimal](_ => BigDecimal(0))(_ => ()))
     )
 
@@ -95,6 +97,36 @@ object module extends JsonModule[JsonSchema.type] with HasMigration[JsonSchema.t
     t,
     "s2".narrow :: HNil,
     trans2
+  )
+
+  //import Representation._
+
+  /*(schema:Schema[
+      RRecord[scalaz.schema.Representation.RProd[Bar -*> R.Prim[String],String, Foo -*> R.Prim[Boolean],Boolean],(String, Boolean),(String, Boolean)],
+      (String,Boolean)
+    ])*/
+
+  val t3 = Partial(
+    u,
+    "s".narrow :: HNil
+  ).transform(
+    schema => {
+      val d = DerivationTo[Schema]
+      d.rec(schema)(
+          tplSchema => {
+            d.prod(tplSchema)(
+              bar => d.const(bar)(bar),
+              foo => d.const(foo)(unit)
+            )(
+              (bar, _) => bar
+            )
+          }
+        )(
+          (_, baseSchema) =>
+            record(baseSchema, Iso[String, (String, Boolean)](str => (str, true))(tpl => tpl._1))
+        )
+        .to
+    }
   )
 
   val added = new AddField("s".narrow :: "foo".narrow :: HNil, prim(JsonSchema.JsonBool), true)(u)

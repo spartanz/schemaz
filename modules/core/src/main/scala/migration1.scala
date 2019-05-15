@@ -21,6 +21,4 @@ trait HasMigration[R <: Realisation] extends HasTransform[R] {
       t((_: Schema[RF, AF]) => iso(unit, monocle.Iso[Unit, AF](_ => default)(_ => ())))(base)
   }
 
-  
-
 }
