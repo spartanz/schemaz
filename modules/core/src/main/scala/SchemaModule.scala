@@ -573,6 +573,8 @@ trait SchemaModule[R <: Realisation] {
     def apply[G[_, _]] = new DerivationTo[G] {}
   }
 
+  val migrate = DerivationTo[Schema]
+
   trait AtPath[Repr, A, P <: HList] {
     type RO
     type O
