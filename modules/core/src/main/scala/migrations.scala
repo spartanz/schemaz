@@ -6,6 +6,8 @@ import Representation._
 
 import shapeless._
 
+final case class Parent[T](t: T)
+
 trait HasTransform[R <: Realisation] extends SchemaModule[R] {
 
   sealed trait Transform[RA, A, P <: HList, R0, R1, T] {
@@ -35,7 +37,29 @@ trait HasTransform[R <: Realisation] extends SchemaModule[R] {
 
   }
 
-  trait LowPrioTransform extends LowPrioTransform1 {
+  trait LowPrioTransform extends LowPrioTransform0 {
+    implicit def prodLeftParentTransform[RL, N <: R.ProductTermId, RR, AR, RL1, T]: Aux[RProd[
+      N -*> RL,
+      T,
+      RR,
+      AR
+    ], (T, AR), Parent[N] :: HNil, RProd[N -*> RL, T, RR, AR], RL1, (T, AR), RL1] =
+      new Transform[RProd[N -*> RL, T, RR, AR], (T, AR), Parent[N] :: HNil, RProd[
+        N -*> RL,
+        T,
+        RR,
+        AR
+      ], RL1, (T, AR)] {
+        type NR = RL1
+
+        def apply(
+          transformation: Schema[RProd[N -*> RL, T, RR, AR], (T, AR)] => Schema[RL1, (T, AR)]
+        ): Schema[RProd[N -*> RL, T, RR, AR], (T, AR)] => Schema[RL1, (T, AR)] = transformation
+      }
+
+  }
+
+  trait LowPrioTransform0 extends LowPrioTransform1 {
 
     implicit def branchTransform[RA, A, N <: R.SumTermId, PT <: HList, R0, R1, T](
       implicit inner: Transform[RA, A, PT, R0, R1, T]
