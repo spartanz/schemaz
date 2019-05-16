@@ -13,8 +13,8 @@ trait HasMigration[R <: Realisation] extends HasTransform[R] {
 
     identity(path)
 
-    def apply[RA, A, RR, AR](base: Schema[RA, A])(
-      implicit t: Transform[RA, A, P, RProd[RF, AF, RR, AR], RIso[RR, AR, (AF, AR)], (AF, AR)]
+    def apply[RA, A, RR, AR, INR](base: Schema[RA, A])(
+      implicit t: Transform.Aux[RA, A, P, RProd[RF, AF, RR, AR], RIso[RR, AR, (AF, AR)], (AF, AR), INR]
     ): Schema[t.NR, A] =
       t(
         (s: Schema[RProd[RF, AF, RR, AR], (AF, AR)]) =>
@@ -34,19 +34,18 @@ trait HasMigration[R <: Realisation] extends HasTransform[R] {
 
     identity(atPath)
 
-    def addField[RL, AL, RR, AR](default: AL)(
+    def addField[RL, AL, RR, AR, INR](default: AL)(
       implicit ev: Unpack4[RX, RProd, RL, AL, RR, AR],
       ev2: Unpack2[AX, Tuple2, AL, AR],
-      t: Transform[Repr, A, P, RProd[RL, AL, RR, AR], RIso[RR, AR, (AL, AR)], (AL, AR)]
-    ): Schema[t.NR, A] = {
+      t: Transform.Aux[Repr, A, P, RProd[RL, AL, RR, AR], RIso[RR, AR, (AL, AR)], (AL, AR), INR]
+    ): Schema[INR, A] = {
       identity(ev)
       identity(ev2)
-      new AddField[P, RL, AL](
+      new AddField(
         path,
         default
-      ).apply[Repr, A, RR, AR](baseSchema)
+      ).apply(baseSchema)
     }
-
     //other migrations
   }
 
