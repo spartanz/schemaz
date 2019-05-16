@@ -460,6 +460,7 @@ trait SchemaModule[R <: Realisation] {
         }
 
       }
+
   }
 
   object AtPath extends LowPrioAtPath {
@@ -476,6 +477,22 @@ trait SchemaModule[R <: Realisation] {
       identity(path)
       atPath
     }
+
+    implicit def atProdLeftParent[RL, N <: R.ProductTermId, RR, AR, RL1, T]: AtPath.Aux[RProd[
+      N -*> RL,
+      T,
+      RR,
+      AR
+    ], (T, AR), Parent[N] :: HNil, RProd[N -*> RL, T, RR, AR], (T, AR)] =
+      new AtPath[RProd[N -*> RL, T, RR, AR], (T, AR), Parent[N] :: HNil] {
+        override type RO = RProd[N -*> RL, T, RR, AR]
+        override type O  = (T, AR)
+
+        override def select(
+          schema: Schema[RProd[N -*> RL, T, RR, AR], (T, AR)]
+        ): Schema[RProd[N -*> RL, T, RR, AR], (T, AR)] = schema
+
+      }
 
     implicit def atRoot[Repr, A, P <: HNil]: Aux[Repr, A, P, Repr, A] = new AtPath[Repr, A, P] {
       override type RO = Repr
