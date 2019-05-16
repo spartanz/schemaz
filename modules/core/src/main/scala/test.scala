@@ -1,4 +1,4 @@
-import scalaz._, schema._, Json._, Representation._
+import scalaz._, schema._, Json._ //, Representation._
 import monocle._
 
 import shapeless._
@@ -86,14 +86,16 @@ object module extends JsonModule[JsonSchema.type] with HasMigration[JsonSchema.t
       iso(unit, Iso[Unit, BigDecimal](_ => BigDecimal(0))(_ => ()))
     )
 
-  val added =
-    new AddField(Parent("bar".narrow) :: HNil, "bar".narrow -*>: prim(JsonSchema.JsonString), "bar")
+  val added = MigrationAt(u, "s".narrow :: Parent("bar".narrow) :: HNil).addField("bar")
+  /* new AddField(Parent("bar".narrow) :: HNil, "bar".narrow -*>: prim(JsonSchema.JsonString), "bar")
       .apply[RRecord[RProd[
         Bar -*> String,
         String,
         Foo -*> Boolean,
         Boolean
-      ], (String, Boolean), (String, Boolean)], (String, Boolean), Foo -*> Boolean, Boolean](s)
+      ], (String, Boolean), (String, Boolean)], (String, Boolean), Foo -*> Boolean, Boolean](s)*/
+
+  val addedEnc = added.to[Encoder]
 
   //val initial =    new AddField("s".narrow :: "bar".narrow :: HNil, prim(JsonSchema.JsonString), "<bar>")(added)
   val burns = Person("Montgommery Burns", Some(Admin(List("billionaire", "evil mastermind"))))

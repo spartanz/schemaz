@@ -3,17 +3,15 @@ package scalaz
 package schema
 
 import Representation._
-import shapeless.HList
+import shapeless._
 
 trait HasMigration[R <: Realisation] extends HasTransform[R] {
 
   sealed trait Migration[R0, R1, T]
 
-  final class AddField[P <: HList, RF, AF](path: P, field: Schema[RF, AF], default: AF)
-      extends Migration[RF, Unit, AF] {
+  final class AddField[P <: HList, RF, AF](path: P, default: AF) extends Migration[RF, Unit, AF] {
 
     identity(path)
-    identity(field)
 
     def apply[RA, A, RR, AR](base: Schema[RA, A])(
       implicit t: Transform[RA, A, P, RProd[RF, AF, RR, AR], RIso[RR, AR, (AF, AR)], (AF, AR)]
@@ -26,6 +24,37 @@ trait HasMigration[R <: Realisation] extends HasTransform[R] {
             case _ => ???
           }
       )(base)
+  }
+
+  //This should help with type inference. We can still formulate the Operations as above (see AddField) but we can make them more use friendly by using AtPath and a Wrapper to get type inference to play along
+  sealed abstract class MigrationAt[Repr, P <: HList, A, RX, AX] private (
+    baseSchema: Schema[Repr, A],
+    path: P
+  )(implicit atPath: AtPath.Aux[Repr, A, P, RX, AX]) {
+
+    identity(atPath)
+
+    def addField[RL, AL, RR, AR](default: AL)(
+      implicit ev: Unpack4[RX, RProd, RL, AL, RR, AR],
+      ev2: Unpack2[AX, Tuple2, AL, AR],
+      t: Transform[Repr, A, P, RProd[RL, AL, RR, AR], RIso[RR, AR, (AL, AR)], (AL, AR)]
+    ): Schema[t.NR, A] = {
+      identity(ev)
+      identity(ev2)
+      new AddField[P, RL, AL](
+        path,
+        default
+      ).apply[Repr, A, RR, AR](baseSchema)
+    }
+
+    //other migrations
+  }
+
+  object MigrationAt {
+
+    def apply[P <: HList, Repr, A, RX, AX](baseSchema: Schema[Repr, A], path: P)(
+      implicit atPath: AtPath.Aux[Repr, A, P, RX, AX]
+    ) = new MigrationAt(baseSchema, path) {}
   }
 
 }
