@@ -1,4 +1,4 @@
-import scalaz._, schema._, Json._ //, Representation._
+import scalaz._, schema._, Json._, Representation._
 import monocle._
 
 import shapeless._
@@ -65,6 +65,7 @@ object module extends JsonModule[JsonSchema.type] with HasMigration[JsonSchema.t
 
   type Name = Witness.`"name"`.T
   type Foo  = Witness.`"foo"`.T
+  type Bar  = Witness.`"bar"`.T
 
 //  import AtPath._
 
@@ -85,20 +86,16 @@ object module extends JsonModule[JsonSchema.type] with HasMigration[JsonSchema.t
       iso(unit, Iso[Unit, BigDecimal](_ => BigDecimal(0))(_ => ()))
     )
 
-  val t = Transform(
-    u,
-    "s".narrow :: "foo".narrow :: HNil,
-    trans
-  )
+  val added =
+    new AddField(Parent("bar".narrow) :: HNil, "bar".narrow -*>: prim(JsonSchema.JsonString), "bar")
+      .apply[RRecord[RProd[
+        Bar -*> String,
+        String,
+        Foo -*> Boolean,
+        Boolean
+      ], (String, Boolean), (String, Boolean)], (String, Boolean), Foo -*> Boolean, Boolean](s)
 
-  val t2 = Transform(
-    t,
-    "s2".narrow :: HNil,
-    trans2
-  )
-
-  val added = new AddField("s".narrow :: "foo".narrow :: HNil, prim(JsonSchema.JsonBool), true)(u)
-
+  //val initial =    new AddField("s".narrow :: "bar".narrow :: HNil, prim(JsonSchema.JsonString), "<bar>")(added)
   val burns = Person("Montgommery Burns", Some(Admin(List("billionaire", "evil mastermind"))))
   val homer = Person("Homer Simpson", Some(User(true, burns)))
 
