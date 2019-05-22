@@ -3,57 +3,82 @@ package scalaz
 package schema
 
 import Representation._
-import shapeless._
 
-trait HasMigration[R <: Realisation] extends HasTransform[R] {
+import monocle.Iso
 
-  sealed trait Migration[R0, R1, T]
+trait HasMigration[R <: Realisation] extends SchemaModule[R] {
 
-  final class AddField[P <: HList, RF, AF](path: P, default: AF) extends Migration[RF, Unit, AF] {
+  trait DoAddField[N <: R.ProductTermId, RIn, I, X] {
+    type ROut
 
-    identity(path)
-
-    def apply[RA, A, RR, AR, INR](base: Schema[RA, A])(
-      implicit t: Transform.Aux[RA, A, P, RProd[RF, AF, RR, AR], RIso[RR, AR, (AF, AR)], (AF, AR), INR]
-    ): Schema[t.NR, A] =
-      t(
-        (s: Schema[RProd[RF, AF, RR, AR], (AF, AR)]) =>
-          s.unFix match {
-            case p: Prod[Schema, RF, RR, AF, AR] =>
-              iso(p.right, monocle.Iso[AR, (AF, AR)](x => (default, x))(p => p._2))
-            case _ => ???
-          }
-      )(base)
+    def apply(in: Schema[RIn, I], default: X): Schema[ROut, I]
   }
 
-  //This should help with type inference. We can still formulate the Operations as above (see AddField) but we can make them more use friendly by using AtPath and a Wrapper to get type inference to play along
-  sealed abstract class MigrationAt[Repr, P <: HList, A, RX, AX] private (
-    baseSchema: Schema[Repr, A],
-    path: P
-  )(implicit atPath: AtPath.Aux[Repr, A, P, RX, AX]) {
+  object DoAddField extends LowPrioDoAddField {
 
-    identity(atPath)
+    implicit def doAddFieldHere[N <: R.ProductTermId, RI, I, RR, AR] =
+      new DoAddField[N, RProd[N -*> RI, I, RR, AR], (I, AR), I] {
+        type ROut = RIso[RR, AR, (I, AR)]
 
-    def addField[RL, AL, RR, AR, INR](default: AL)(
-      implicit ev: Unpack4[RX, RProd, RL, AL, RR, AR],
-      ev2: Unpack2[AX, Tuple2, AL, AR],
-      t: Transform.Aux[Repr, A, P, RProd[RL, AL, RR, AR], RIso[RR, AR, (AL, AR)], (AL, AR), INR]
-    ): Schema[INR, A] = {
-      identity(ev)
-      identity(ev2)
-      new AddField(
-        path,
-        default
-      ).apply(baseSchema)
+        def apply(
+          in: Schema[RProd[N -*> RI, I, RR, AR], (I, AR)],
+          default: I
+        ): Schema[RIso[RR, AR, (I, AR)], (I, AR)] = in.unFix match {
+          case ProdF(_, right) => iso(right, Iso[AR, (I, AR)](x => (default, x))(p => p._2))
+          case _               => ???
+        }
+      }
+
+    implicit def doAddFieldHereR[N <: R.ProductTermId, RI, I, RL, AL] =
+      new DoAddField[N, RProd[RL, AL, N -*> RI, I], (AL, I), I] {
+        type ROut = RIso[RL, AL, (AL, I)]
+
+        def apply(
+          in: Schema[RProd[RL, AL, N -*> RI, I], (AL, I)],
+          default: I
+        ): Schema[RIso[RL, AL, (AL, I)], (AL, I)] = in.unFix match {
+          case ProdF(left, _) => iso(left, Iso[AL, (AL, I)](x => (x, default))(p => p._1))
+          case _              => ???
+        }
+      }
+  }
+
+  trait LowPrioDoAddField {
+    implicit def doAddFieldBelow[N <: R.ProductTermId, RR, AR, RI, AI, X](
+      implicit below: DoAddField[N, RI, AI, X]
+    ) = new DoAddField[N, RProd[RR, AR, RI, AI], (AR, AI), X] {
+      type ROut = RProd[RR, AR, below.ROut, AI]
+
+      def apply(
+        in: Schema[RProd[RR, AR, RI, AI], (AR, AI)],
+        default: X
+      ): Schema[RProd[RR, AR, below.ROut, AI], (AR, AI)] = in.unFix match {
+        case ProdF(left, right) => left :*: below(right, default)
+        case _                  => ???
+      }
     }
-    //other migrations
+
+    implicit def doAddFieldBelowI[N <: R.ProductTermId, RI, AI, I, X](
+      implicit below: DoAddField[N, RI, AI, X]
+    ) = new DoAddField[N, RIso[RI, AI, I], I, X] {
+      type ROut = RIso[below.ROut, AI, I]
+
+      def apply(in: Schema[RIso[RI, AI, I], I], default: X): Schema[RIso[below.ROut, AI, I], I] =
+        in.unFix match {
+          case IsoSchemaF(base, isoA) => iso(below(base, default), isoA)
+          case _                      => ???
+        }
+    }
   }
 
-  object MigrationAt {
+  implicit class MigrationRecordOps[Rn: IsRecord, An, A](rec: Schema[RRecord[Rn, An, A], A]) {
 
-    def apply[P <: HList, Repr, A, RX, AX](baseSchema: Schema[Repr, A], path: P)(
-      implicit atPath: AtPath.Aux[Repr, A, P, RX, AX]
-    ) = new MigrationAt(baseSchema, path) {}
+    def addField[N <: R.ProductTermId, X](name: N, default: X)(
+      implicit transfo: DoAddField[N, Rn, An, X]
+    ): Schema[RRecord[transfo.ROut, An, A], A] = rec.unFix match {
+      case RecordF(fields, isoA) =>
+        record(transfo(fields, default), isoA)(new IsRecord[transfo.ROut] {})
+      case _ => identity(name); ???
+    }
   }
-
 }
