@@ -69,6 +69,16 @@ trait HasMigration[R <: Realisation] extends SchemaModule[R] {
           case _                      => ???
         }
     }
+
+    implicit def doAddFieldLast[N <: R.ProductTermId, RI] =
+      new DoAddField[N, N -*> RI, RI, RI] {
+        type ROut = RIso[Unit, Unit, RI]
+
+        def apply(
+          in: Schema[N -*> RI, RI],
+          default: RI
+        ): Schema[RIso[Unit, Unit, RI], RI] = iso(unit, Iso[Unit, RI](_ => default)(_ => ()))
+      }
   }
 
   implicit class MigrationRecordOps[Rn: IsRecord, An, A](rec: Schema[RRecord[Rn, An, A], A]) {
