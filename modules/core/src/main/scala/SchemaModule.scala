@@ -267,16 +267,14 @@ trait SchemaModule[R <: Realisation] {
 
   val R: R
 
-  type RInterpreter[F[_, _]] = Interpreter[Schema, F]
+  type RInterpreter[F[_, _]] = Interpreter[SchemaZ, F]
 
   type RSchema[F[_, _], Repr, A] = SchemaF[R.Prim, R.SumTermId, R.ProductTermId, F, Repr, A]
 
-  type BareSchema[A] =
+  type Schema[A] =
     Fix[SchemaF[R.Prim, R.SumTermId, R.ProductTermId, ?[_, _], ?, ?], Repr, A] forSome { type Repr }
 
-  type Schema[Repr, A] = Fix[SchemaF[R.Prim, R.SumTermId, R.ProductTermId, ?[_, _], ?, ?], Repr, A]
-
-  type Schema_[A] = BareSchema[A]
+  type SchemaZ[Repr, A] = Fix[SchemaF[R.Prim, R.SumTermId, R.ProductTermId, ?[_, _], ?, ?], Repr, A]
 
   type ROne[F[_, _]]               = One[F, R.Prim, R.SumTermId, R.ProductTermId]
   type RPrim[F[_, _], A]           = PrimSchemaF[F, A, R.Prim, R.SumTermId, R.ProductTermId]
@@ -308,25 +306,25 @@ trait SchemaModule[R <: Realisation] {
   // Public API
   ////////////////
 
-  implicit final class SchemaSyntax[Repr, A](schema: Schema[Repr, A]) {
+  implicit final class SchemaSyntax[Repr, A](schema: SchemaZ[Repr, A]) {
 
-    def :*: [R2, B](left: Schema[R2, B]): Schema[RProd[R2, B, Repr, A], (B, A)] =
+    def :*: [R2, B](left: SchemaZ[R2, B]): SchemaZ[RProd[R2, B, Repr, A], (B, A)] =
       Fix(new ProdF(left, schema))
 
-    def :+: [R2, B](left: Schema[R2, B]): Schema[RSum[R2, B, Repr, A], B \/ A] =
+    def :+: [R2, B](left: SchemaZ[R2, B]): SchemaZ[RSum[R2, B, Repr, A], B \/ A] =
       Fix(new SumF(left, schema))
 
     def -*>: [I <: R.ProductTermId](
       id: I
-    ): Schema[I -*> Repr, A] =
+    ): SchemaZ[I -*> Repr, A] =
       Fix(FieldF(id, schema))
 
-    def -+>: [I <: R.SumTermId](id: I): Schema[I -+> Repr, A] =
+    def -+>: [I <: R.SumTermId](id: I): SchemaZ[I -+> Repr, A] =
       Fix(BranchF(id, schema))
 
     def to[F[_, _]](implicit interpreter: RInterpreter[F]): F[_, A] = interpreter.interpret(schema)
 
-    def imap[B](_iso: Iso[A, B]): Schema[RIso[Repr, A, B], B] = Fix(IsoSchemaF(schema, _iso))
+    def imap[B](_iso: Iso[A, B]): SchemaZ[RIso[Repr, A, B], B] = Fix(IsoSchemaF(schema, _iso))
     /*
     schema.unFix match {
       case i: IsoSchema[Schema, Repr, a0, A] =>
@@ -341,48 +339,50 @@ trait SchemaModule[R <: Realisation] {
    */
   }
 
-  final def unit: Schema[Unit, Unit] =
+  final def unit: SchemaZ[Unit, Unit] =
     Fix(
       One()
     )
 
-  final def prim[A](prim: R.Prim[A]): Schema[A, A] =
+  final def prim[A](prim: R.Prim[A]): SchemaZ[A, A] =
     Fix(
       PrimSchemaF(prim)
     )
 
   final def union[Repr: IsUnion, A, AE](
-    choices: Schema[Repr, AE],
+    choices: SchemaZ[Repr, AE],
     iso: Iso[AE, A]
-  ): Schema[RUnion[Repr, AE, A], A] =
+  ): SchemaZ[RUnion[Repr, AE, A], A] =
     Fix(UnionF(choices, iso))
 
   final def optional[Repr, A](
-    aSchema: Schema[Repr, A]
-  ): Schema[RIso[RSum[Repr, A, Unit, Unit], A \/ Unit, Option[A]], Option[A]] =
+    aSchema: SchemaZ[Repr, A]
+  ): SchemaZ[RIso[RSum[Repr, A, Unit, Unit], A \/ Unit, Option[A]], Option[A]] =
     iso(
       Fix(SumF(aSchema, unit)),
       Iso[A \/ Unit, Option[A]](_.swap.toOption)(_.fold[A \/ Unit](\/-(()))(-\/(_)))
     )
 
   final def record[Repr: IsRecord, A, An](
-    terms: Schema[Repr, An],
+    terms: SchemaZ[Repr, An],
     isoA: Iso[An, A]
-  ): Schema[RRecord[Repr, An, A], A] =
+  ): SchemaZ[RRecord[Repr, An, A], A] =
     Fix(RecordF(terms, isoA))
 
-  final def seq[Repr, A](element: Schema[Repr, A]): Schema[RSeq[Repr, A], List[A]] =
+  final def seq[Repr, A](element: SchemaZ[Repr, A]): SchemaZ[RSeq[Repr, A], List[A]] =
     Fix(SeqF(element))
 
   final def iso[Repr, A0, A](
-    base: Schema[Repr, A0],
+    base: SchemaZ[Repr, A0],
     iso: Iso[A0, A]
-  ): Schema[RIso[Repr, A0, A], A] =
+  ): SchemaZ[RIso[Repr, A0, A], A] =
     Fix(IsoSchemaF(base, iso))
 
-  final def self[A](root: => Schema[_, A]): Schema[RSelf[A], A] =
+  final def self[A](root: => SchemaZ[_, A]): SchemaZ[RSelf[A], A] =
     Fix(
-      SelfReference(() => root, new (Schema ~~> Schema) { def apply[R0, X](a: Schema[R0, X]) = a })
+      SelfReference(() => root, new (SchemaZ ~~> SchemaZ) {
+        def apply[R0, X](a: SchemaZ[R0, X]) = a
+      })
     )
 
 }
