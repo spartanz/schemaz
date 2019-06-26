@@ -1,6 +1,4 @@
-package scalaz
-
-package schema
+package schemaz
 
 object ScalaSchema extends Realisation {
   type Prim[A]       = ScalaPrim[A]

@@ -1,9 +1,7 @@
-package scalaz
-
-package schema
+package schemaz
 
 package generic
-
+import scalaz.{ Alt, Decidable, \/, ~> }
 import recursion._
 
 trait GenericSchemaModule[R <: Realisation] extends SchemaModule[R] {

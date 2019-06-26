@@ -3,8 +3,8 @@ val monocleVersion    = "1.5.0"
 val derivingVersion   = "1.0.0"
 val scalacheckVersion = "1.14.0"
 
-inThisBuild(scalaVersion := "2.12.8")
-
+ThisBuild / scalaVersion := "2.12.8"
+ThisBuild / useSuperShell := false
 lazy val root = project
   .in(file("."))
   .settings(

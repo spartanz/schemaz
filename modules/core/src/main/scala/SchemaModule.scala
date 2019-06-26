@@ -1,10 +1,9 @@
-package scalaz
-
-package schema
+package schemaz
 
 import recursion._
 
 import monocle.Iso
+import scalaz.{ -\/, \/, \/-, ~> }
 
 trait Realisation {
   type Prim[A]
@@ -202,7 +201,7 @@ object SchemaF {
   type FSchema[Prim[_], SumTermId, ProductTermId, A] =
     Fix[SchemaF[Prim, SumTermId, ProductTermId, ?[_], ?], A]
 
-  sealed private[schema] trait LabelledSum_[A, Prim[_], SumTermId, ProductTermId] {
+  sealed private[schemaz] trait LabelledSum_[A, Prim[_], SumTermId, ProductTermId] {
     def toSchema: FSchema[Prim, SumTermId, ProductTermId, A]
 
     def :+: [B](
@@ -210,7 +209,7 @@ object SchemaF {
     ): LabelledSum_[B \/ A, Prim, SumTermId, ProductTermId] = LabelledSum2(l, this)
   }
 
-  final private[schema] case class LabelledSum1[A, Prim[_], SumTermId, ProductTermId](
+  final private[schemaz] case class LabelledSum1[A, Prim[_], SumTermId, ProductTermId](
     id: SumTermId,
     schema: FSchema[Prim, SumTermId, ProductTermId, A]
   ) extends LabelledSum_[A, Prim, SumTermId, ProductTermId] {
@@ -218,7 +217,7 @@ object SchemaF {
 
   }
 
-  final private[schema] case class LabelledSum2[A, B, Prim[_], SumTermId, ProductTermId](
+  final private[schemaz] case class LabelledSum2[A, B, Prim[_], SumTermId, ProductTermId](
     l: LabelledSum_[A, Prim, SumTermId, ProductTermId],
     r: LabelledSum_[B, Prim, SumTermId, ProductTermId]
   ) extends LabelledSum_[A \/ B, Prim, SumTermId, ProductTermId] {
@@ -226,7 +225,7 @@ object SchemaF {
 
   }
 
-  sealed private[schema] trait LabelledProduct_[A, Prim[_], SumTermId, ProductTermId] {
+  sealed private[schemaz] trait LabelledProduct_[A, Prim[_], SumTermId, ProductTermId] {
     def toSchema: FSchema[Prim, SumTermId, ProductTermId, A]
 
     def :*: [B](
@@ -234,7 +233,7 @@ object SchemaF {
     ): LabelledProduct_[(B, A), Prim, SumTermId, ProductTermId] = LabelledProduct2(l, this)
   }
 
-  final private[schema] case class LabelledProduct1[A, Prim[_], SumTermId, ProductTermId](
+  final private[schemaz] case class LabelledProduct1[A, Prim[_], SumTermId, ProductTermId](
     id: ProductTermId,
     schema: FSchema[Prim, SumTermId, ProductTermId, A]
   ) extends LabelledProduct_[A, Prim, SumTermId, ProductTermId] {
@@ -242,7 +241,7 @@ object SchemaF {
 
   }
 
-  final private[schema] case class LabelledProduct2[A, B, Prim[_], SumTermId, ProductTermId](
+  final private[schemaz] case class LabelledProduct2[A, B, Prim[_], SumTermId, ProductTermId](
     l: LabelledProduct_[A, Prim, SumTermId, ProductTermId],
     r: LabelledProduct_[B, Prim, SumTermId, ProductTermId]
   ) extends LabelledProduct_[(A, B), Prim, SumTermId, ProductTermId] {

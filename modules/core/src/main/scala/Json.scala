@@ -1,8 +1,7 @@
-package scalaz
+package schemaz
 
-package schema
-
-import Liskov._
+import scalaz.~>
+import scalaz.Liskov.<~<
 
 object Json {
   type JSON = String

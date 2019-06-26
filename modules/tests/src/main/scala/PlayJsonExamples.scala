@@ -1,9 +1,7 @@
-package scalaz
-
-package schema
+package schemaz
 
 package tests
-
+import scalaz.~>
 import testz._
 import _root_.play.api.libs.json._
 import org.scalacheck._, Prop._, Arbitrary._

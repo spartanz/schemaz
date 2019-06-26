@@ -1,6 +1,6 @@
-package scalaz
+package schemaz
 
-package schema
+import scalaz.~>
 
 package recursion {
 
