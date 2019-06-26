@@ -8,7 +8,7 @@ inThisBuild(scalaVersion := "2.12.8")
 lazy val root = project
   .in(file("."))
   .settings(
-    name := "scalaz-schema"
+    name := "schemaz"
   )
   .aggregate(
     core,
@@ -20,7 +20,7 @@ lazy val root = project
 lazy val core = project
   .in(file("modules/core"))
   .settings(
-    name := "scalaz-schema-core",
+    name := "schemaz-core",
     libraryDependencies ++= Seq(
       "com.github.julien-truffaut" %% "monocle-core"  % monocleVersion,
       "com.github.julien-truffaut" %% "monocle-macro" % monocleVersion
@@ -30,7 +30,7 @@ lazy val core = project
 lazy val generic = project
   .in(file("modules/generic"))
   .settings(
-    name := "scalaz-schema-generic",
+    name := "schemaz-generic",
     libraryDependencies ++= Seq(
       "org.scalaz" %% "scalaz-deriving" % derivingVersion
     ).map(_.exclude("org.scalaz", "scalaz"))
@@ -40,7 +40,7 @@ lazy val generic = project
 lazy val scalacheck = project
   .in(file("modules/scalacheck"))
   .settings(
-    name := "scalaz-schema-scalacheck",
+    name := "schemaz-scalacheck",
     libraryDependencies ++= Seq(
       "org.scalacheck" %% "scalacheck" % scalacheckVersion
     )
@@ -50,7 +50,7 @@ lazy val scalacheck = project
 lazy val playJson = project
   .in(file("modules/play-json"))
   .settings(
-    name := "scalaz-schema-play-json",
+    name := "schemaz-play-json",
     libraryDependencies ++= Seq(
       "com.typesafe.play" %% "play-json" % "2.6.10"
     )
@@ -84,21 +84,21 @@ lazy val microsite = project
     ),
     micrositeFooterText := Some(
       """
-        |<p>&copy; 2019 <a href="https://github.com/scalaz/scalaz-schema">Scalaz-schema Maintainers</a></p>
+        |<p>&copy; 2019 <a href="https://github.com/spartanz/schemaz">SchemaZ Maintainers</a></p>
         |""".stripMargin
     ),
-    micrositeName := "Scalaz-Schema",
+    micrositeName := "SchemaZ",
     micrositeDescription := "Abstract over data structures in a principled, purely functional way",
-    micrositeAuthor := "Scalaz-schema contributors",
-    micrositeOrganizationHomepage := "https://github.com/scalaz/scalaz-schema",
-    micrositeGitterChannelUrl := "scalaz/scalaz-schema",
-    micrositeGitHostingUrl := "https://github.com/scalaz/scalaz-schema",
+    micrositeAuthor := "SchemaZ contributors",
+    micrositeOrganizationHomepage := "https://github.com/scalaz/schemaz",
+    micrositeGitterChannelUrl := "spartanz/schemaz",
+    micrositeGitHostingUrl := "https://github.com/spartanz/schemaz",
     micrositeGithubOwner := "scalaz",
-    micrositeGithubRepo := "scalaz-schema",
+    micrositeGithubRepo := "schemaz",
     micrositeFavicons := Seq(microsites.MicrositeFavicon("favicon.png", "512x512")),
     micrositeDocumentationUrl := "docs/schemas.html",
     micrositeDocumentationLabelDescription := "Documentation",
-    micrositeBaseUrl := "/scalaz-schema",
+    micrositeBaseUrl := "/schemaz",
     micrositePalette := Map(
       "brand-primary"   -> "#990000",
       "brand-secondary" -> "#000000",
