@@ -446,7 +446,9 @@ project/plugins/project/
 *.class
 *.log
 .idea
-
+.metals/
+.bloop/
+.sbt-hydra-history
 
 # Travis keys
 travis-deploy-key
