@@ -1,4 +1,4 @@
-# scalaz-schema design notes
+# SchemaZ design notes
 This document aims to lay out explanations for every scalaz-schema major design change.
 
 

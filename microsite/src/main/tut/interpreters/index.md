@@ -62,7 +62,7 @@ TODO
 
 ## Interpreter modules
 
-For most applications though, you won't need to write interpreters by yourself. Scalaz-Schema offers modules providing interpreters for target functors covering a wide variety of use cases: `org.scalacheck.Gen`, encoders and decoders for widely used data formats (Avro, protobuf, etc.) or popular JSON AST libraries (play-json, circe, etc.). Every such module is listed in the remaining of this section.
+For most applications though, you won't need to write interpreters by yourself. SchemaZ offers modules providing interpreters for target functors covering a wide variety of use cases: `org.scalacheck.Gen`, encoders and decoders for widely used data formats (Avro, protobuf, etc.) or popular JSON AST libraries (play-json, circe, etc.). Every such module is listed in the remaining of this section.
 
 The provided interpreters abstract over the "representation" details of your schema. More specifically, because `Prim`, `ProductTermId` and `SumTermId` are abstract in `SchemaModule`, interpreter modules must be told how to concretely handle primitives and fields/branches labels in your specific context before giving you a concrete interpreter for that context. 
 

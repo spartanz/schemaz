@@ -17,7 +17,7 @@ A purely-functional library for defining type-safe schemas for algebraic data ty
 
 ## Introduction & Highlights
 
-SchemaZ defines a generic representation of algebraic data structures and combinators that turn such schema into a generic computation over arbitrary data. In other words, Scalaz Schema provides a way to express any computation that abstracts over the structure of data, such as:
+SchemaZ defines a generic representation of algebraic data structures and combinators that turn such schema into a generic computation over arbitrary data. In other words, SchemaZ provides a way to express any computation that abstracts over the structure of data, such as:
 
 * Codecs: given a serial format (binary, JSON, etc.) and the schema of a data structure (say, an ADT) we can derive a codec for that data structure and serial format.
 * Data Generators: given any schema we can derive random data generators (eg. scalacheck's `Gen`) that produce data satisfying that schema.

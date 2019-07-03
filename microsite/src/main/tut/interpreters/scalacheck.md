@@ -6,17 +6,17 @@ section: interpreters
 
 # {{page.title}}
 
-The `scalaz-schema-scalacheck` module provides interpreters for scalacheck random data generators (`org.scalacheck.Gen`).
+The `schemaz-scalacheck` module provides interpreters for scalacheck random data generators (`org.scalacheck.Gen`).
 
 ## Example usage
 
 ```tut:silent
-import scalaz._, schema._
+import schemaz._
 import org.scalacheck._, Arbitrary._
 import monocle.Iso
 ```
 
-To use it, you'll need to define a module mixing the `scalaz.schema.scalacheck.GenModule` trait and to define an implicit `Prim ~> Gen` natural transformation from your specific set of primitives to `Gen`.
+To use it, you'll need to define a module mixing the `schemaz.scalacheck.GenModule` trait and to define an implicit `Prim ~> Gen` natural transformation from your specific set of primitives to `Gen`.
 
 ```tut:silent
 object ExampleModule extends scalacheck.GenModule[JsonSchema.type] {
