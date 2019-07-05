@@ -44,6 +44,7 @@ So in order to build a schema, you must first define a concrete `SchemaModule` i
 
 ```tut:silent
 import schemaz._
+import scalaz.{\/, -\/, \/-}
 ```
 
 ```tut:silent

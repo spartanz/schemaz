@@ -14,6 +14,7 @@ The `schemaz-scalacheck` module provides interpreters for scalacheck random data
 import schemaz._
 import org.scalacheck._, Arbitrary._
 import monocle.Iso
+import scalaz.~>
 ```
 
 To use it, you'll need to define a module mixing the `schemaz.scalacheck.GenModule` trait and to define an implicit `Prim ~> Gen` natural transformation from your specific set of primitives to `Gen`.
