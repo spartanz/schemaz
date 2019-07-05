@@ -1,10 +1,9 @@
-package scalaz
-
-package schema
+package schemaz
 
 package scalacheck
 
 import org.scalacheck._
+import scalaz.{ -\/, \/-, ~> }
 
 trait GenModule[R <: Realisation] extends SchemaModule[R] {
 

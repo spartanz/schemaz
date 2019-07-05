@@ -1,9 +1,7 @@
-package scalaz
-
-package schema
+package schemaz
 
 package tests
-
+import scalaz.{ -\/, \/, \/- }
 import monocle.Iso
 
 final case class Person(name: String, role: Option[Role])

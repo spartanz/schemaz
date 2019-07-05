@@ -1,15 +1,15 @@
-# scalaz-schema
+# SchemaZ
 
-[![Gitter](https://badges.gitter.im/scalaz/scalaz-schema.svg)](https://gitter.im/scalaz/scalaz-schema?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Gitter](https://badges.gitter.im/spartanz/schemaz.svg)](https://gitter.im/spartanz/schemaz?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 
 [![Build Status][build-image]][build-url] [![Coverage Status][coverage-image]][coverage-url]
 
-[build-image]: http://img.shields.io/travis/scalaz/scalaz-schema/prototyping.svg
-[build-url]: https://travis-ci.org/scalaz/scalaz-schema
+[build-image]: http://img.shields.io/travis/spartanz/schemaz/prototyping.svg
+[build-url]: https://travis-ci.org/spartanz/schemaz
 
-[coverage-image]: https://img.shields.io/codecov/c/github/scalaz/scalaz-schema/prototyping.svg
-[coverage-url]: https://codecov.io/github/scalaz/scalaz-schema?branch=prototyping
+[coverage-image]: https://img.shields.io/codecov/c/github/spartanz/schemaz/prototyping.svg
+[coverage-url]: https://codecov.io/github/spartanz/schemaz?branch=prototyping
 
 ## Goal
 
@@ -17,7 +17,7 @@ A purely-functional library for defining type-safe schemas for algebraic data ty
 
 ## Introduction & Highlights
 
-Scalaz Schema defines a generic representation of algebraic data structures and combinators that turn such schema into a generic computation over arbitrary data. In other words, Scalaz Schema provides a way to express any computation that abstracts over the structure of data, such as:
+SchemaZ defines a generic representation of algebraic data structures and combinators that turn such schema into a generic computation over arbitrary data. In other words, SchemaZ provides a way to express any computation that abstracts over the structure of data, such as:
 
 * Codecs: given a serial format (binary, JSON, etc.) and the schema of a data structure (say, an ADT) we can derive a codec for that data structure and serial format.
 * Data Generators: given any schema we can derive random data generators (eg. scalacheck's `Gen`) that produce data satisfying that schema.
@@ -41,7 +41,7 @@ Scalaz Schema defines a generic representation of algebraic data structures and 
  
 ## Background
 
-Scalaz Schema shares ideas with @nuttycom's [xenomorph](https://github.com/nuttycom/xenomorph) library. The talk below presents its design.
+SchemaZ shares ideas with @nuttycom's [xenomorph](https://github.com/nuttycom/xenomorph) library. The talk below presents its design.
 
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=oRLkb6mqvVM" target="_blank"><img src="http://img.youtube.com/vi/oRLkb6mqvVM/0.jpg" 
 alt="Describing Data...with free applicative functors (and more)—Kris Nuttycombe" width="240" height="180" border="10" /></a>

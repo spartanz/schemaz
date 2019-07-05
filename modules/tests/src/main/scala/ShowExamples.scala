@@ -1,9 +1,7 @@
-package scalaz
-
-package schema
+package schemaz
 
 package tests
-
+import scalaz.{ Show, ~> }
 import testz._
 import generic._
 

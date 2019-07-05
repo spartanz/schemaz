@@ -1,13 +1,11 @@
-package scalaz
-
-package schema
+package schemaz
 
 package play.json
 
 import recursion._
-
-import Scalaz._
-import Liskov._
+import scalaz.{ -\/, Applicative, \/-, ~> }
+import scalaz.Scalaz._
+import scalaz.Liskov.<~<
 import _root_.play.api.libs.json._
 import _root_.play.api.libs.functional.syntax._
 

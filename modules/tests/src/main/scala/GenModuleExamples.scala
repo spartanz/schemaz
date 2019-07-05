@@ -1,10 +1,8 @@
-package scalaz
-
-package schema
+package schemaz
 
 package tests
-
-import scalacheck._
+import scalaz.~>
+import schemaz.scalacheck._
 
 import testz._
 import org.scalacheck._, Prop._, rng.Seed, Arbitrary._

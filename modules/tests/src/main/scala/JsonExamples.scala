@@ -1,9 +1,7 @@
-package scalaz
-
-package schema
+package schemaz
 
 package tests
-
+import scalaz.~>
 import testz._
 
 object JsonExamples {

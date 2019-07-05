@@ -43,7 +43,8 @@ The Schema API abstracts over how these *convenience schemas* are effectively re
 So in order to build a schema, you must first define a concrete `SchemaModule` implementing these types. For example, if we are dealing with schemas for JSON documents, we can write:
 
 ```tut:silent
-import scalaz._, schema._
+import schemaz._
+import scalaz.{\/, -\/, \/-}
 ```
 
 ```tut:silent

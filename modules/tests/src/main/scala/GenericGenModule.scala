@@ -1,9 +1,7 @@
-package scalaz
-
-package schema
+package schemaz
 
 package tests
-
+import scalaz.{ Alt, Applicative, ~> }
 import org.scalacheck._
 import generic.GenericSchemaModule
 
