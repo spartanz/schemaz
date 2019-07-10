@@ -1,6 +1,6 @@
 package schemaz
 
-import scalaz.~>
+import scalaz.{ ~>, ~~> }
 import scalaz.Liskov.<~<
 
 object Json {

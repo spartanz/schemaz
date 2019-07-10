@@ -1,6 +1,4 @@
-package scalaz
-
-package schema
+package schemaz
 
 trait Migrations[R <: Realisation] extends SchemaModule[R] {
 

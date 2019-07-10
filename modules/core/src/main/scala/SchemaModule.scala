@@ -4,7 +4,7 @@ import scala.annotation.implicitNotFound
 import recursion._
 
 import monocle.Iso
-import scalaz.{ -\/, \/, \/-, ~> }
+import scalaz.{ -\/, \/, \/-, ~~> }
 
 trait Realisation {
   type Prim[A]

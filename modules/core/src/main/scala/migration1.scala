@@ -1,6 +1,4 @@
-package scalaz
-
-package schema
+package schemaz
 
 import Representation._
 

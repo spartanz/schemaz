@@ -1,7 +1,7 @@
-import scalaz._, schema._
+import schemaz._
 import monocle._
 
-//import shapeless._
+import scalaz._
 
 import shapeless.syntax.singleton._
 
