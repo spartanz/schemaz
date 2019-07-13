@@ -22,10 +22,9 @@ lazy val core = project
   .settings(
     name := "schemaz-core",
     libraryDependencies ++= Seq(
-      "com.chuusai" %% "shapeless" % "2.3.3",
       "com.github.julien-truffaut" %% "monocle-core"  % monocleVersion,
       "com.github.julien-truffaut" %% "monocle-macro" % monocleVersion
-    ).map(_.exclude("org.scalaz", "scalaz"))//,
+    ).map(_.exclude("org.scalaz", "scalaz")) //,
 //    addCompilerPlugin("io.tryp" % "splain" % "0.4.1" cross CrossVersion.patch)
   )
 
@@ -64,9 +63,10 @@ lazy val tests = project
   .settings(
     name := "tests",
     libraryDependencies ++= Seq(
-      "org.scalaz" %% "testz-core"   % testzVersion,
-      "org.scalaz" %% "testz-stdlib" % testzVersion,
-      "org.scalaz" %% "testz-runner" % testzVersion
+      "com.chuusai" %% "shapeless"    % "2.3.3",
+      "org.scalaz"  %% "testz-core"   % testzVersion,
+      "org.scalaz"  %% "testz-stdlib" % testzVersion,
+      "org.scalaz"  %% "testz-runner" % testzVersion
     )
   )
   .dependsOn(core, scalacheck, generic, playJson)

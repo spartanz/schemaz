@@ -1,276 +1,100 @@
 package schemaz
 
-trait Versioning[R <: Realisation] extends SchemaModule[R] {
+import Representation._
 
-  final val Current: Version[Unit, Unit] = new Version(())
+import monocle.Iso
 
-  sealed case class Version[Types, Re](registry: Re)(
-    implicit build: Version.Build[Types, Re]
-  ) {
+trait HasMigration[R <: Realisation] extends SchemaModule[R] {
 
-    lazy val types: Types = build(registry)
+  trait DoAddField[N <: R.ProductTermId, RIn, I, X] {
+    type ROut
 
-    def schema[A, RA](leaf: SchemaZ[RA, A])(
-      implicit add: Version.AddEntry[Types, Unit, A, RA]
-    ): Version[(Schema[A], Types), (Version.Entry.Aux[A, RA, Types], Re)] =
-      new Version((add(Version.Entry((_: Unit) => leaf)), registry))
-
-    def schema[A, RA, D](ctr: D => SchemaZ[RA, A])(
-      implicit add: Version.AddEntry[Types, D, A, RA]
-    ): Version[(Schema[A], Types), (Version.Entry.Aux[A, RA, Types], Re)] =
-      new Version(
-        (add(Version.Entry(ctr)), registry)
-      )
-
-    def schema[A, RA, D1, D2](ctr: (D1, D2) => SchemaZ[RA, A])(
-      implicit add: Version.AddEntry[Types, (D1, D2), A, RA]
-    ): Version[(Schema[A], Types), (Version.Entry.Aux[A, RA, Types], Re)] =
-      new Version(
-        (add(Version.Entry(ctr.tupled)), registry)
-      )
-
-    def schema[A, RA, D1, D2, D3](ctr: (D1, D2, D3) => SchemaZ[RA, A])(
-      implicit add: Version.AddEntry[Types, (D1, D2, D3), A, RA]
-    ): Version[(Schema[A], Types), (Version.Entry.Aux[A, RA, Types], Re)] =
-      new Version(
-        (add(Version.Entry(ctr.tupled)), registry)
-      )
-
-    def schema[A, RA, D1, D2, D3, D4](ctr: (D1, D2, D3, D4) => SchemaZ[RA, A])(
-      implicit add: Version.AddEntry[Types, (D1, D2, D3, D4), A, RA]
-    ): Version[(Schema[A], Types), (Version.Entry.Aux[A, RA, Types], Re)] =
-      new Version(
-        (add(Version.Entry(ctr.tupled)), registry)
-      )
-
-    def schema[A, RA, D1, D2, D3, D4, D5](ctr: (D1, D2, D3, D4, D5) => SchemaZ[RA, A])(
-      implicit add: Version.AddEntry[Types, (D1, D2, D3, D4, D5), A, RA]
-    ): Version[(Schema[A], Types), (Version.Entry.Aux[A, RA, Types], Re)] =
-      new Version(
-        (add(Version.Entry(ctr.tupled)), registry)
-      )
-
-    def migrate[A](
-      implicit lookup: Version.LookupCtr[Re, A]
-    ): Migration[Types, Re, A, lookup.Repr, lookup.Deps] = new Migration(registry, lookup)
-
-    def lookup[A](implicit l: Version.Lookup[Types, A]): Schema[A] = l(types)
-
+    def apply(in: SchemaZ[RIn, I], default: X): SchemaZ[ROut, I]
   }
 
-  final class Migration[Types, Re, A, RA, D](
-    registry: Re,
-    lookup: Version.LookupCtr.Aux[Re, A, RA, D]
-  ) {
+  object DoAddField extends LowPrioDoAddField {
 
-    def change[RA1, Re1](migration: SchemaZ[RA, A] => SchemaZ[RA1, A])(
-      implicit replace: Version.Replace.Aux[Re, A, RA1, D, Re1],
-      build: Version.Build[Types, Re1]
-    ): Version[Types, Re1] =
-      new Version[Types, Re1](replace(registry, lookup(registry).post(migration)))
+    implicit def doAddFieldHere[N <: R.ProductTermId, RI, I, RR, AR] =
+      new DoAddField[N, RProd[N -*> RI, I, RR, AR], (I, AR), I] {
+        type ROut = RIso[RR, AR, (I, AR)]
+
+        def apply(
+          in: SchemaZ[RProd[N -*> RI, I, RR, AR], (I, AR)],
+          default: I
+        ): SchemaZ[RIso[RR, AR, (I, AR)], (I, AR)] = SchemaZ.untag(in).unFix match {
+          case ProdF(_, right) =>
+            iso(SchemaZ.tag(right), Iso[AR, (I, AR)](x => (default, x))(p => p._2))
+          case _ => ???
+        }
+      }
+
+    implicit def doAddFieldHereR[N <: R.ProductTermId, RI, I, RL, AL] =
+      new DoAddField[N, RProd[RL, AL, N -*> RI, I], (AL, I), I] {
+        type ROut = RIso[RL, AL, (AL, I)]
+
+        def apply(
+          in: SchemaZ[RProd[RL, AL, N -*> RI, I], (AL, I)],
+          default: I
+        ): SchemaZ[RIso[RL, AL, (AL, I)], (AL, I)] = SchemaZ.untag(in).unFix match {
+          case ProdF(left, _) =>
+            iso(SchemaZ.tag(left), Iso[AL, (AL, I)](x => (x, default))(p => p._1))
+          case _ => ???
+        }
+      }
   }
 
-  object Version {
-
-    trait Entry[A] {
-      type Deps
-      type Repr
-      val entry: Deps => SchemaZ[Repr, A]
-      def pre[D0](f: D0 => Deps): Entry.Aux[A, Repr, D0]
-      def post[R0](f: SchemaZ[Repr, A] => SchemaZ[R0, A]): Entry.Aux[A, R0, Deps]
-    }
-
-    object Entry {
-      type Aux[A, RA, D] = Entry[A] { type Deps = D; type Repr = RA }
-
-      def apply[A, RA, D](ctr: D => SchemaZ[RA, A]): Aux[A, RA, D] =
-        VersionEntry[A, RA, D](ctr)
-    }
-    case class VersionEntry[A, RA, D](entry: D => SchemaZ[RA, A]) extends Entry[A] {
-      type Deps = D
-      type Repr = RA
-
-      def pre[D0](f: D0 => Deps): Entry.Aux[A, Repr, D0] = Entry(entry.compose(f))
-
-      def post[R0](f: SchemaZ[Repr, A] => SchemaZ[R0, A]): Entry.Aux[A, R0, Deps] =
-        Entry(entry.andThen(f))
-
-    }
-
-    trait AddEntry[Re, D, A, RA] {
-      def prepare: Re => D
+  trait LowPrioDoAddField {
+    implicit def doAddFieldBelow[N <: R.ProductTermId, RR, AR, RI, AI, X](
+      implicit below: DoAddField[N, RI, AI, X]
+    ) = new DoAddField[N, RProd[RR, AR, RI, AI], (AR, AI), X] {
+      type ROut = RProd[RR, AR, below.ROut, AI]
 
       def apply(
-        newEntry: Version.Entry.Aux[A, RA, D]
-      ): Version.Entry.Aux[A, RA, Re] =
-        newEntry.pre(prepare)
-    }
-
-    object AddEntry {
-
-      implicit def noDependencies[Re, A, RA]: AddEntry[Re, Unit, A, RA] =
-        new AddEntry[Re, Unit, A, RA] { def prepare: Re => Unit = _ => () }
-
-      implicit def singleDependency[Re, D, A, RA](
-        implicit D: Version.Lookup[Re, D]
-      ): AddEntry[Re, Schema[D], A, RA] = new AddEntry[Re, Schema[D], A, RA] {
-        def prepare: Re => Schema[D] = (re => D(re))
+        in: SchemaZ[RProd[RR, AR, RI, AI], (AR, AI)],
+        default: X
+      ): SchemaZ[RProd[RR, AR, below.ROut, AI], (AR, AI)] = SchemaZ.untag(in).unFix match {
+        case ProdF(left, right) => SchemaZ.tag[RR, AR](left) :*: below(SchemaZ.tag(right), default)
+        case _                  => ???
       }
+    }
 
-      implicit def twoDependencies[Re, D1, D2, A, RA](
-        implicit D1: Version.Lookup[Re, D1],
-        D2: Version.Lookup[Re, D2]
-      ): AddEntry[Re, (Schema[D1], Schema[D2]), A, RA] =
-        new AddEntry[Re, (Schema[D1], Schema[D2]), A, RA] {
-          def prepare: Re => (Schema[D1], Schema[D2]) = (re => (D1(re), D2(re)))
-        }
+    implicit def doAddFieldBelowI[N <: R.ProductTermId, RI, AI, I, X](
+      implicit below: DoAddField[N, RI, AI, X]
+    ) = new DoAddField[N, RIso[RI, AI, I], I, X] {
+      type ROut = RIso[below.ROut, AI, I]
 
-      implicit def threeDependencies[Re, D1, D2, D3, A, RA](
-        implicit D1: Version.Lookup[Re, D1],
-        D2: Version.Lookup[Re, D2],
-        D3: Version.Lookup[Re, D3]
-      ): AddEntry[Re, (Schema[D1], Schema[D2], Schema[D3]), A, RA] =
-        new AddEntry[Re, (Schema[D1], Schema[D2], Schema[D3]), A, RA] {
-          def prepare: Re => (Schema[D1], Schema[D2], Schema[D3]) = (re => (D1(re), D2(re), D3(re)))
-        }
-
-      implicit def fourDependencies[Re, D1, D2, D3, D4, A, RA](
-        implicit D1: Version.Lookup[Re, D1],
-        D2: Version.Lookup[Re, D2],
-        D3: Version.Lookup[Re, D3],
-        D4: Version.Lookup[Re, D4]
-      ): AddEntry[Re, (Schema[D1], Schema[D2], Schema[D3], Schema[D4]), A, RA] =
-        new AddEntry[Re, (Schema[D1], Schema[D2], Schema[D3], Schema[D4]), A, RA] {
-
-          def prepare: Re => (Schema[D1], Schema[D2], Schema[D3], Schema[D4]) =
-            (re => (D1(re), D2(re), D3(re), D4(re)))
-        }
-
-      implicit def fiveDependencies[Re, D1, D2, D3, D4, D5, A, RA](
-        implicit D1: Version.Lookup[Re, D1],
-        D2: Version.Lookup[Re, D2],
-        D3: Version.Lookup[Re, D3],
-        D4: Version.Lookup[Re, D4],
-        D5: Version.Lookup[Re, D5]
-      ): AddEntry[Re, (Schema[D1], Schema[D2], Schema[D3], Schema[D4], Schema[D5]), A, RA] =
-        new AddEntry[Re, (Schema[D1], Schema[D2], Schema[D3], Schema[D4], Schema[D5]), A, RA] {
-
-          def prepare: Re => (Schema[D1], Schema[D2], Schema[D3], Schema[D4], Schema[D5]) =
-            (re => (D1(re), D2(re), D3(re), D4(re), D5(re)))
+      def apply(in: SchemaZ[RIso[RI, AI, I], I], default: X): SchemaZ[RIso[below.ROut, AI, I], I] =
+        SchemaZ.untag(in).unFix match {
+          case IsoSchemaF(base, isoA) =>
+            iso(below(base.asInstanceOf[SchemaZ[RI, AI]], default), isoA.asInstanceOf[Iso[AI, I]])
+          case _ => ???
         }
     }
 
-    trait LookupCtr[Re, A] {
-      type Repr
-      type Deps
-      def apply(registry: Re): Version.Entry.Aux[A, Repr, Deps]
-    }
+    implicit def doAddFieldLast[N <: R.ProductTermId, RI] =
+      new DoAddField[N, N -*> RI, RI, RI] {
+        type ROut = RIso[Unit, Unit, RI]
 
-    trait LowPrioLookupCtr {
-      implicit def tailLookupCtr[R1, RT, A, R0, D0](
-        implicit rest: LookupCtr.Aux[RT, A, R0, D0]
-      ): LookupCtr.Aux[(R1, RT), A, R0, D0] =
-        new LookupCtr[(R1, RT), A] {
-          type Repr = R0
-          type Deps = D0
-          def apply(registry: (R1, RT)): Version.Entry.Aux[A, R0, D0] = rest(registry._2)
-        }
-    }
-
-    object LookupCtr extends LowPrioLookupCtr {
-      type Aux[Re, A, R0, D0] = LookupCtr[Re, A] { type Repr = R0; type Deps = D0 }
-      implicit def headLookupCtr[RR, A, R0, D]
-        : LookupCtr.Aux[(Version.Entry.Aux[A, R0, D], RR), A, R0, D] =
-        new LookupCtr[(Version.Entry.Aux[A, R0, D], RR), A] {
-          type Repr = R0
-          type Deps = D
-
-          def apply(
-            registry: (Version.Entry.Aux[A, R0, D], RR)
-          ): Version.Entry.Aux[A, R0, D] =
-            registry._1
-        }
-    }
-
-    trait Replace[Re, A, R1, D] {
-      type Out
-      def apply(registry: Re, replacement: Version.Entry.Aux[A, R1, D]): Out
-    }
-
-    object Replace {
-
-      type Aux[Re, A, R1, D, Re1] = Replace[Re, A, R1, D] { type Out = Re1 }
-
-      implicit def tailReplace[A, RA, RA1, D, RT]: Replace.Aux[
-        (Version.Entry.Aux[A, RA, D], RT),
-        A,
-        RA1,
-        D,
-        (Version.Entry.Aux[A, RA1, D], RT)
-      ] =
-        new Replace[(Version.Entry.Aux[A, RA, D], RT), A, RA1, D] {
-          type Out = (Version.Entry.Aux[A, RA1, D], RT)
-          override def apply(
-            registry: (Version.Entry.Aux[A, RA, D], RT),
-            replacement: Version.Entry.Aux[A, RA1, D]
-          ): (Version.Entry.Aux[A, RA1, D], RT) = (replacement, registry._2)
-        }
-
-      implicit def headReplace[H, A, R1, D, RT, RT1](
-        implicit rest: Replace.Aux[RT, A, R1, D, RT1]
-      ): Replace.Aux[(H, RT), A, R1, D, (H, RT1)] =
-        new Replace[(H, RT), A, R1, D] {
-          type Out = (H, RT1)
-          override def apply(
-            registry: (H, RT),
-            replacement: Version.Entry.Aux[A, R1, D]
-          ): (H, RT1) =
-            (registry._1, rest(registry._2, replacement))
-        }
-    }
-
-    trait Build[Tpe, Reg] {
-      def apply(ctrReg: Reg): Tpe
-    }
-
-    object Build {
-      implicit val buildEmpty: Build[Unit, Unit] = new Build[Unit, Unit] {
-        def apply(ctrReg: Unit): Unit = ctrReg
+        def apply(
+          in: SchemaZ[N -*> RI, RI],
+          default: RI
+        ): SchemaZ[RIso[Unit, Unit, RI], RI] = iso(unit, Iso[Unit, RI](_ => default)(_ => ()))
       }
-
-      implicit def buildVersion[A, Tpe, Reg, RA](
-        implicit rest: Build[Tpe, Reg]
-      ): Build[(Schema[A], Tpe), (Version.Entry.Aux[A, RA, Tpe], Reg)] =
-        new Build[(Schema[A], Tpe), (Version.Entry.Aux[A, RA, Tpe], Reg)] {
-
-          def apply(
-            ctrReg: (Version.Entry.Aux[A, RA, Tpe], Reg)
-          ): (Schema[A], Tpe) = {
-            val tail = rest(ctrReg._2)
-
-            (SchemaZ.untag(ctrReg._1.entry(tail)), tail)
-          }
-        }
-    }
-
-    trait Lookup[Re, A] {
-      def apply(registry: Re): Schema[A]
-    }
-
-    trait LowPrioLookup {
-      implicit def tailLookup[R1, RT, A](implicit rest: Lookup[RT, A]): Lookup[(R1, RT), A] =
-        new Lookup[(R1, RT), A] {
-          def apply(registry: (R1, RT)): Schema[A] = rest(registry._2)
-        }
-    }
-
-    object Lookup extends LowPrioLookup {
-      implicit def headLookup[RR, A]: Lookup[(Schema[A], RR), A] =
-        new Lookup[(Schema[A], RR), A] {
-          def apply(registry: (Schema[A], RR)): Schema[A] = registry._1
-        }
-    }
-
   }
 
+  implicit class MigrationRecordOps[Rn: IsRecord, An, A](rec: SchemaZ[RRecord[Rn, An, A], A]) {
+
+    def addField[N <: R.ProductTermId, X](name: N, default: X)(
+      implicit transfo: DoAddField[N, Rn, An, X]
+    ): SchemaZ[RRecord[transfo.ROut, An, A], A] = SchemaZ.untag(rec).unFix match {
+      case RecordF(fields, isoA) =>
+        record[transfo.ROut, A, An](
+          transfo(fields.asInstanceOf[SchemaZ[Rn, An]], default),
+          isoA.asInstanceOf[Iso[An, A]]
+        )(
+          new IsRecord[transfo.ROut] {}
+        )
+      case _ => identity(name); ???
+    }
+  }
 }
