@@ -13,7 +13,7 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
 
   import SchemaF._
 
-  type LabelledSchema[A] = (Boolean, FSchema[R.Prim, R.SumTermId, R.ProductTermId, A])
+  type LabelledSchema[A] = (Boolean, Schema[A])
 
   private def ascribeWith(
     label: Boolean
