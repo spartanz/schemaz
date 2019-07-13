@@ -340,8 +340,10 @@ trait SchemaModule[R <: Realisation] {
 
     def to[F[_]](implicit interpreter: RInterpreter[F]): F[A] = interpreter.interpret(untag(schema))
 
-    def imap[B](_iso: Iso[A, B]): SchemaZ[RIso[Repr, A, B], B] =
-      tag(Fix(IsoSchemaF(untag(schema), _iso)))
+    def imap[B](_iso: Iso[A, B]): SchemaZ[RIso[Repr, A, B], B] = SchemaZ.untag(schema).unFix match {
+      case IsoSchemaF(base, i) => tag(Fix(IsoSchemaF(base, i.composeIso(_iso))))
+      case x                   => tag(Fix(IsoSchemaF(Fix(x), _iso)))
+    }
 
   }
 
