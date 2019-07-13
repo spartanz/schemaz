@@ -4,6 +4,8 @@ package tests
 import scalaz.{ -\/, \/, \/- }
 import monocle.Iso
 
+import shapeless.syntax.singleton._
+
 final case class Person(name: String, role: Option[Role])
 sealed trait Role
 final case class User(active: Boolean)       extends Role
@@ -24,19 +26,22 @@ trait TestModule extends SchemaModule[JsonSchema.type] with Versioning[JsonSchem
 
   val current = Current
     .schema(
-      record("active" -*>: prim(JsonSchema.JsonBool), Iso[Boolean, User](User.apply)(u => u.active))
+      record(
+        "active".narrow -*>: prim(JsonSchema.JsonBool),
+        Iso[Boolean, User](User.apply)(u => u.active)
+      )
     )
     .schema(
       record(
-        "rights" -*>: seq(prim(JsonSchema.JsonString)),
+        "rights".narrow -*>: seq(prim(JsonSchema.JsonString)),
         Iso[List[String], Admin](Admin.apply)(_.rights)
       )
     )
     .schema(
       (u: Schema[User], a: Schema[Admin]) =>
         union(
-          "user" -+>: u :+:
-            "admin" -+>: a,
+          "user".narrow -+>: u :+:
+            "admin".narrow -+>: a,
           Iso[User \/ Admin, Role] {
             case -\/(u) => u
             case \/-(a) => a
@@ -49,8 +54,8 @@ trait TestModule extends SchemaModule[JsonSchema.type] with Versioning[JsonSchem
     .schema(
       (r: Schema[Role]) =>
         record(
-          "name" -*>: prim(JsonSchema.JsonString) :*:
-            "role" -*>: optional(
+          "name".narrow -*>: prim(JsonSchema.JsonString) :*:
+            "role".narrow -*>: optional(
             r
           ),
           Iso[(String, Option[Role]), Person]((Person.apply _).tupled)(p => (p.name, p.role))
