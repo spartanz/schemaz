@@ -278,8 +278,6 @@ trait SchemaModule[R <: Realisation] {
   object SchemaZ {
     def tag[Repr, A](schema: Schema[A]): SchemaZ[Repr, A]    = schema.asInstanceOf[SchemaZ[Repr, A]]
     def untag[Repr, A](schemaz: SchemaZ[Repr, A]): Schema[A] = schemaz.asInstanceOf[Schema[A]]
-
-    implicit def forget[Repr, A](schemaz: SchemaZ[Repr, A]): Schema[A] = untag(schemaz)
   }
 
   type ROne[F[_]]            = One[F, R.Prim, R.SumTermId, R.ProductTermId]
@@ -318,6 +316,8 @@ trait SchemaModule[R <: Realisation] {
     def -+>: [I <: R.SumTermId](id: I): SchemaZ[I -+> A, A] =
       SchemaZ.tag(Fix(BranchF(id.asInstanceOf[R.SumTermId], schema)))
 
+    def to[F[_]](implicit interpreter: RInterpreter[F]): F[A] = interpreter.interpret(schema)
+
   }
 
   implicit final class SchemaZSyntax[Repr, A](schema: SchemaZ[Repr, A]) {
@@ -342,18 +342,7 @@ trait SchemaModule[R <: Realisation] {
 
     def imap[B](_iso: Iso[A, B]): SchemaZ[RIso[Repr, A, B], B] =
       tag(Fix(IsoSchemaF(untag(schema), _iso)))
-    /*
-    schema.unFix match {
-      case i: IsoSchema[Schema, Repr, a0, A] =>
-        Fix(
-          IsoSchemaF[Schema, Repr, a0, B, R.Prim, R.SumTermId, R.ProductTermId](
-            i.base,
-            i.iso.composeIso(_iso)
-          )
-        )
-      case _ => Fix(IsoSchemaF(schema, _iso))
-    }
-   */
+
   }
 
   final def unit: SchemaZ[Unit, Unit] =

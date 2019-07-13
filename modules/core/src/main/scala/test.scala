@@ -8,7 +8,7 @@ import shapeless.syntax.singleton._
 object module
     extends JsonModule[JsonSchema.type]
     with HasMigration[JsonSchema.type]
-    with Migrations[JsonSchema.type] {
+    with Versioning[JsonSchema.type] {
 
 //  import Transform._
 
@@ -38,70 +38,59 @@ object module
     )
   val homer = Person("Homer Simpson", Some(User(active = true, username = "SpiderPig")))
 
-  val mkUser =
-    (_: Unit) =>
+  val version2 = Current
+    .schema(
       record(
         "active".narrow -*>: prim(JsonSchema.JsonBool) :*: "username".narrow -*>: prim(
           JsonSchema.JsonString
         ),
         Iso[(Boolean, String), User]((User.apply _).tupled)(u => (u.active, u.username))
       )
-
-  val mkAdmin =
-    (_: Unit) =>
+    )
+    .schema(
       record(
         "username".narrow -*>: prim(JsonSchema.JsonString) :*: "rights".narrow -*>: seq(
           prim(JsonSchema.JsonString)
         ),
         Iso[(String, List[String]), Admin]((Admin.apply _).tupled)(a => (a.username, a.rights))
       )
+    )
+    .schema(
+      (
+        admin: Schema[Admin],
+        user: Schema[User]
+      ) =>
+        union(
+          "user".narrow -+>: user :+:
+            "admin".narrow -+>: admin,
+          Iso[User \/ Admin, Role] {
+            case -\/(u) => u
+            case \/-(a) => a
+          } {
+            case u @ User(_, _)  => -\/(u)
+            case a @ Admin(_, _) => \/-(a)
+          }
+        )
+    )
+    .schema(
+      (role: Schema[Role]) =>
+        record(
+          "name".narrow -*>: prim(JsonSchema.JsonString) :*:
+            "role".narrow -*>: optional(role),
+          Iso[(String, Option[Role]), Person]((Person.apply _).tupled)(p => (p.name, p.role))
+        )
+    )
 
-  val mkRole =
-    (admin: Schema[Admin], user: Schema[User]) =>
-      union(
-        "user".narrow -+>: user :+:
-          "admin".narrow -+>: admin,
-        Iso[User \/ Admin, Role] {
-          case -\/(u) => u
-          case \/-(a) => a
-        } {
-          case u @ User(_, _)  => -\/(u)
-          case a @ Admin(_, _) => \/-(a)
-        }
-      )
-
-  val mkPerson =
-    (role: Schema[Role]) =>
-      record(
-        "name".narrow -*>: prim(JsonSchema.JsonString) :*:
-          "role".narrow -*>: optional(
-          role
-        ),
-        Iso[(String, Option[Role]), Person]((Person.apply _).tupled)(p => (p.name, p.role))
-      )
-
-  val version2 = CtrRegistry.empty
-    .addEntry(mkUser)
-    .addEntry(mkAdmin)
-    .addEntry(mkRole.tupled)
-    .addEntry(mkPerson)
-
-  val version2Reg = Registry.build(version2)
-
-  val version1 = version2.replace(
+  val version1 =
     version2
       .migrate[User]
-      .post(_.addField("active".narrow, false))
-  )
+      .change(_.addField("active".narrow, false))
 
-  val version1Reg = Registry.build(version1)
-
-  val version0 = version1.replace(
+  val version0 =
     version1
       .migrate[User]
-      .post(_.addField("username".narrow, "John Doe"))
-  )
-
-  val version0Reg = Registry.build(version0)
+      .change(_.addField("username".narrow, "John Doe"))
+      .migrate[Admin]
+      .change(_.addField("username".narrow, "John Doe"))
 
 }

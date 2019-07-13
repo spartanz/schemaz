@@ -25,8 +25,8 @@ lazy val core = project
       "com.chuusai" %% "shapeless" % "2.3.3",
       "com.github.julien-truffaut" %% "monocle-core"  % monocleVersion,
       "com.github.julien-truffaut" %% "monocle-macro" % monocleVersion
-    ).map(_.exclude("org.scalaz", "scalaz")),
-    addCompilerPlugin("io.tryp" % "splain" % "0.4.1" cross CrossVersion.patch)
+    ).map(_.exclude("org.scalaz", "scalaz"))//,
+//    addCompilerPlugin("io.tryp" % "splain" % "0.4.1" cross CrossVersion.patch)
   )
 
 lazy val generic = project

@@ -1,143 +1,76 @@
 package schemaz
 
-trait Migrations[R <: Realisation] extends SchemaModule[R] {
+trait Versioning[R <: Realisation] extends SchemaModule[R] {
 
-  trait Lookup[Re, A] {
-    def apply(registry: Re): Schema[A]
-  }
+  final val Current: Version[Unit, Unit] = new Version(())
 
-  trait LowPrioLookup {
-    implicit def rightLookup[R1, RT, A](implicit rest: Lookup[RT, A]): Lookup[(R1, RT), A] =
-      new Lookup[(R1, RT), A] {
-        def apply(registry: (R1, RT)): Schema[A] = rest(registry._2)
-      }
-  }
+  sealed case class Version[Types, Re](registry: Re)(
+    implicit build: Version.Build[Types, Re]
+  ) {
 
-  object Lookup extends LowPrioLookup {
-    implicit def leftLookup[RR, A]: Lookup[(Schema[A], RR), A] =
-      new Lookup[(Schema[A], RR), A] {
-        def apply(registry: (Schema[A], RR)): Schema[A] = registry._1
-      }
-  }
+    lazy val types: Types = build(registry)
 
-  trait CtrLookup[Re, A] {
-    type Repr
-    type Deps
-    def apply(registry: Re): CtrRegistry.Entry.Aux[A, Repr, Deps]
-  }
+    def schema[A, RA](leaf: SchemaZ[RA, A])(
+      implicit add: Version.AddEntry[Types, Unit, A, RA]
+    ): Version[(Schema[A], Types), (Version.Entry.Aux[A, RA, Types], Re)] =
+      new Version((add(Version.Entry((_: Unit) => leaf)), registry))
 
-  trait LowPrioCtrLookup {
-    implicit def rightLookup[R1, RT, A, R0, D0](
-      implicit rest: CtrLookup.Aux[RT, A, R0, D0]
-    ): CtrLookup.Aux[(R1, RT), A, R0, D0] =
-      new CtrLookup[(R1, RT), A] {
-        type Repr = R0
-        type Deps = D0
-        def apply(registry: (R1, RT)): CtrRegistry.Entry.Aux[A, R0, D0] = rest(registry._2)
-      }
-  }
+    def schema[A, RA, D](ctr: D => SchemaZ[RA, A])(
+      implicit add: Version.AddEntry[Types, D, A, RA]
+    ): Version[(Schema[A], Types), (Version.Entry.Aux[A, RA, Types], Re)] =
+      new Version(
+        (add(Version.Entry(ctr)), registry)
+      )
 
-  object CtrLookup extends LowPrioCtrLookup {
-    type Aux[Re, A, R0, D0] = CtrLookup[Re, A] { type Repr = R0; type Deps = D0 }
-    implicit def leftLookup[RR, A, R0, D]
-      : CtrLookup.Aux[(CtrRegistry.Entry.Aux[A, R0, D], RR), A, R0, D] =
-      new CtrLookup[(CtrRegistry.Entry.Aux[A, R0, D], RR), A] {
-        type Repr = R0
-        type Deps = D
+    def schema[A, RA, D1, D2](ctr: (D1, D2) => SchemaZ[RA, A])(
+      implicit add: Version.AddEntry[Types, (D1, D2), A, RA]
+    ): Version[(Schema[A], Types), (Version.Entry.Aux[A, RA, Types], Re)] =
+      new Version(
+        (add(Version.Entry(ctr.tupled)), registry)
+      )
 
-        def apply(
-          registry: (CtrRegistry.Entry.Aux[A, R0, D], RR)
-        ): CtrRegistry.Entry.Aux[A, R0, D] =
-          registry._1
-      }
-  }
+    def schema[A, RA, D1, D2, D3](ctr: (D1, D2, D3) => SchemaZ[RA, A])(
+      implicit add: Version.AddEntry[Types, (D1, D2, D3), A, RA]
+    ): Version[(Schema[A], Types), (Version.Entry.Aux[A, RA, Types], Re)] =
+      new Version(
+        (add(Version.Entry(ctr.tupled)), registry)
+      )
 
-  trait Replace[Re, A, R1, D] {
-    type Out
-    def apply(registry: Re, replacement: CtrRegistry.Entry.Aux[A, R1, D]): Out
-  }
+    def schema[A, RA, D1, D2, D3, D4](ctr: (D1, D2, D3, D4) => SchemaZ[RA, A])(
+      implicit add: Version.AddEntry[Types, (D1, D2, D3, D4), A, RA]
+    ): Version[(Schema[A], Types), (Version.Entry.Aux[A, RA, Types], Re)] =
+      new Version(
+        (add(Version.Entry(ctr.tupled)), registry)
+      )
 
-  object Replace {
-
-    type Aux[Re, A, R1, D, Re1] = Replace[Re, A, R1, D] { type Out = Re1 }
-
-    implicit def rightReplace[A, RA, RA1, D, RT]: Replace.Aux[
-      (CtrRegistry.Entry.Aux[A, RA, D], RT),
-      A,
-      RA1,
-      D,
-      (CtrRegistry.Entry.Aux[A, RA1, D], RT)
-    ] =
-      new Replace[(CtrRegistry.Entry.Aux[A, RA, D], RT), A, RA1, D] {
-        type Out = (CtrRegistry.Entry.Aux[A, RA1, D], RT)
-        override def apply(
-          registry: (CtrRegistry.Entry.Aux[A, RA, D], RT),
-          replacement: CtrRegistry.Entry.Aux[A, RA1, D]
-        ): (CtrRegistry.Entry.Aux[A, RA1, D], RT) = (replacement, registry._2)
-      }
-
-    implicit def leftReplace[H, A, R1, D, RT, RT1](
-      implicit rest: Replace.Aux[RT, A, R1, D, RT1]
-    ): Replace.Aux[(H, RT), A, R1, D, (H, RT1)] =
-      new Replace[(H, RT), A, R1, D] {
-        type Out = (H, RT1)
-        override def apply(
-          registry: (H, RT),
-          replacement: CtrRegistry.Entry.Aux[A, R1, D]
-        ): (H, RT1) =
-          (registry._1, rest(registry._2, replacement))
-      }
-  }
-
-  case class CtrRegistry[Types, Re](registry: Re) {
-
-    def addEntry[A, RA, D](ctr: D => SchemaZ[RA, A])(
-      implicit add: AddEntry[Types, D, A, RA]
-    ): CtrRegistry[(Schema[A], Types), (CtrRegistry.Entry.Aux[A, RA, Types], Re)] =
-      new CtrRegistry[(Schema[A], Types), (CtrRegistry.Entry.Aux[A, RA, Types], Re)](
-        (add(CtrRegistry.Entry(ctr)), registry)
+    def schema[A, RA, D1, D2, D3, D4, D5](ctr: (D1, D2, D3, D4, D5) => SchemaZ[RA, A])(
+      implicit add: Version.AddEntry[Types, (D1, D2, D3, D4, D5), A, RA]
+    ): Version[(Schema[A], Types), (Version.Entry.Aux[A, RA, Types], Re)] =
+      new Version(
+        (add(Version.Entry(ctr.tupled)), registry)
       )
 
     def migrate[A](
-      implicit lookup: CtrLookup[Re, A]
-    ): CtrRegistry.Entry.Aux[A, lookup.Repr, lookup.Deps] = lookup(registry)
+      implicit lookup: Version.LookupCtr[Re, A]
+    ): Migration[Types, Re, A, lookup.Repr, lookup.Deps] = new Migration(registry, lookup)
 
-    def replace[A, R1, D, Re1](newEntry: CtrRegistry.Entry.Aux[A, R1, D])(
-      implicit replace: Replace.Aux[Re, A, R1, D, Re1]
-    ): CtrRegistry[Types, Re1] = new CtrRegistry[Types, Re1](replace(registry, newEntry))
+    def lookup[A](implicit l: Version.Lookup[Types, A]): Schema[A] = l(types)
+
   }
 
-  trait AddEntry[Re, D, A, RA] {
-    def prepare: Re => D
+  final class Migration[Types, Re, A, RA, D](
+    registry: Re,
+    lookup: Version.LookupCtr.Aux[Re, A, RA, D]
+  ) {
 
-    def apply(
-      newEntry: CtrRegistry.Entry.Aux[A, RA, D]
-    ): CtrRegistry.Entry.Aux[A, RA, Re] =
-      newEntry.pre(prepare)
+    def change[RA1, Re1](migration: SchemaZ[RA, A] => SchemaZ[RA1, A])(
+      implicit replace: Version.Replace.Aux[Re, A, RA1, D, Re1],
+      build: Version.Build[Types, Re1]
+    ): Version[Types, Re1] =
+      new Version[Types, Re1](replace(registry, lookup(registry).post(migration)))
   }
 
-  object AddEntry {
-
-    implicit def noDependencies[Re, A, RA]: AddEntry[Re, Unit, A, RA] =
-      new AddEntry[Re, Unit, A, RA] { def prepare: Re => Unit = _ => () }
-
-    implicit def singleDependency[Re, D, A, RA](
-      implicit D: Lookup[Re, D]
-    ): AddEntry[Re, Schema[D], A, RA] = new AddEntry[Re, Schema[D], A, RA] {
-      def prepare: Re => Schema[D] = (re => D(re))
-    }
-
-    implicit def twoDependencies[Re, D1, D2, A, RA](
-      implicit D1: Lookup[Re, D1],
-      D2: Lookup[Re, D2]
-    ): AddEntry[Re, (Schema[D1], Schema[D2]), A, RA] =
-      new AddEntry[Re, (Schema[D1], Schema[D2]), A, RA] {
-        def prepare: Re => (Schema[D1], Schema[D2]) = (re => (D1(re), D2(re)))
-      }
-  }
-
-  object CtrRegistry {
-    def empty: CtrRegistry[Unit, Unit] = new CtrRegistry(())
+  object Version {
 
     trait Entry[A] {
       type Deps
@@ -149,58 +82,194 @@ trait Migrations[R <: Realisation] extends SchemaModule[R] {
 
     object Entry {
       type Aux[A, RA, D] = Entry[A] { type Deps = D; type Repr = RA }
-      def apply[A, RA, D](ctr: D => SchemaZ[RA, A]): Aux[A, RA, D] = CtrRegistryEntry[A, RA, D](ctr)
+
+      def apply[A, RA, D](ctr: D => SchemaZ[RA, A]): Aux[A, RA, D] =
+        VersionEntry[A, RA, D](ctr)
     }
-    case class CtrRegistryEntry[A, RA, D](entry: D => SchemaZ[RA, A]) extends Entry[A] {
+    case class VersionEntry[A, RA, D](entry: D => SchemaZ[RA, A]) extends Entry[A] {
       type Deps = D
       type Repr = RA
 
       def pre[D0](f: D0 => Deps): Entry.Aux[A, Repr, D0] = Entry(entry.compose(f))
 
       def post[R0](f: SchemaZ[Repr, A] => SchemaZ[R0, A]): Entry.Aux[A, R0, Deps] =
-        Entry(f.compose(entry))
+        Entry(entry.andThen(f))
 
     }
-  }
 
-  trait Build[Tpe, Reg] {
-    def apply(ctrReg: CtrRegistry[Tpe, Reg]): Registry[Tpe]
-  }
+    trait AddEntry[Re, D, A, RA] {
+      def prepare: Re => D
 
-  object Build {
-    implicit val buildEmpty: Build[Unit, Unit] = new Build[Unit, Unit] {
-      def apply(ctrReg: CtrRegistry[Unit, Unit]): Registry[Unit] = new Registry(ctrReg.registry)
+      def apply(
+        newEntry: Version.Entry.Aux[A, RA, D]
+      ): Version.Entry.Aux[A, RA, Re] =
+        newEntry.pre(prepare)
     }
 
-    implicit def buildRegistry[A, Tpe, Reg, RA](
-      implicit rest: Build[Tpe, Reg]
-    ): Build[(Schema[A], Tpe), (CtrRegistry.Entry.Aux[A, RA, Tpe], Reg)] =
-      new Build[(Schema[A], Tpe), (CtrRegistry.Entry.Aux[A, RA, Tpe], Reg)] {
+    object AddEntry {
 
-        def apply(
-          ctrReg: CtrRegistry[(Schema[A], Tpe), (CtrRegistry.Entry.Aux[A, RA, Tpe], Reg)]
-        ): Registry[(Schema[A], Tpe)] = {
-          val tail = rest(new CtrRegistry[Tpe, Reg](ctrReg.registry._2))
+      implicit def noDependencies[Re, A, RA]: AddEntry[Re, Unit, A, RA] =
+        new AddEntry[Re, Unit, A, RA] { def prepare: Re => Unit = _ => () }
 
-          new Registry((SchemaZ.untag(ctrReg.registry._1.entry(tail.registry)), tail.registry))
-        }
+      implicit def singleDependency[Re, D, A, RA](
+        implicit D: Version.Lookup[Re, D]
+      ): AddEntry[Re, Schema[D], A, RA] = new AddEntry[Re, Schema[D], A, RA] {
+        def prepare: Re => Schema[D] = (re => D(re))
       }
-  }
 
-  case class Registry[Re](registry: Re) { self =>
+      implicit def twoDependencies[Re, D1, D2, A, RA](
+        implicit D1: Version.Lookup[Re, D1],
+        D2: Version.Lookup[Re, D2]
+      ): AddEntry[Re, (Schema[D1], Schema[D2]), A, RA] =
+        new AddEntry[Re, (Schema[D1], Schema[D2]), A, RA] {
+          def prepare: Re => (Schema[D1], Schema[D2]) = (re => (D1(re), D2(re)))
+        }
 
-    def lookup[A](implicit l: Lookup[Re, A]): Schema[A] = l(registry)
+      implicit def threeDependencies[Re, D1, D2, D3, A, RA](
+        implicit D1: Version.Lookup[Re, D1],
+        D2: Version.Lookup[Re, D2],
+        D3: Version.Lookup[Re, D3]
+      ): AddEntry[Re, (Schema[D1], Schema[D2], Schema[D3]), A, RA] =
+        new AddEntry[Re, (Schema[D1], Schema[D2], Schema[D3]), A, RA] {
+          def prepare: Re => (Schema[D1], Schema[D2], Schema[D3]) = (re => (D1(re), D2(re), D3(re)))
+        }
 
-    def addEntry[A](mkEntry: Registry[Re] => Schema[A]): Registry[(Schema[A], Re)] =
-      new Registry((mkEntry(self), registry))
+      implicit def fourDependencies[Re, D1, D2, D3, D4, A, RA](
+        implicit D1: Version.Lookup[Re, D1],
+        D2: Version.Lookup[Re, D2],
+        D3: Version.Lookup[Re, D3],
+        D4: Version.Lookup[Re, D4]
+      ): AddEntry[Re, (Schema[D1], Schema[D2], Schema[D3], Schema[D4]), A, RA] =
+        new AddEntry[Re, (Schema[D1], Schema[D2], Schema[D3], Schema[D4]), A, RA] {
 
-  }
+          def prepare: Re => (Schema[D1], Schema[D2], Schema[D3], Schema[D4]) =
+            (re => (D1(re), D2(re), D3(re), D4(re)))
+        }
 
-  object Registry {
-    val empty: Registry[Unit] = new Registry(())
+      implicit def fiveDependencies[Re, D1, D2, D3, D4, D5, A, RA](
+        implicit D1: Version.Lookup[Re, D1],
+        D2: Version.Lookup[Re, D2],
+        D3: Version.Lookup[Re, D3],
+        D4: Version.Lookup[Re, D4],
+        D5: Version.Lookup[Re, D5]
+      ): AddEntry[Re, (Schema[D1], Schema[D2], Schema[D3], Schema[D4], Schema[D5]), A, RA] =
+        new AddEntry[Re, (Schema[D1], Schema[D2], Schema[D3], Schema[D4], Schema[D5]), A, RA] {
 
-    def build[Tpe, Reg](ctrReg: CtrRegistry[Tpe, Reg])(implicit b: Build[Tpe, Reg]): Registry[Tpe] =
-      b(ctrReg)
+          def prepare: Re => (Schema[D1], Schema[D2], Schema[D3], Schema[D4], Schema[D5]) =
+            (re => (D1(re), D2(re), D3(re), D4(re), D5(re)))
+        }
+    }
+
+    trait LookupCtr[Re, A] {
+      type Repr
+      type Deps
+      def apply(registry: Re): Version.Entry.Aux[A, Repr, Deps]
+    }
+
+    trait LowPrioLookupCtr {
+      implicit def tailLookupCtr[R1, RT, A, R0, D0](
+        implicit rest: LookupCtr.Aux[RT, A, R0, D0]
+      ): LookupCtr.Aux[(R1, RT), A, R0, D0] =
+        new LookupCtr[(R1, RT), A] {
+          type Repr = R0
+          type Deps = D0
+          def apply(registry: (R1, RT)): Version.Entry.Aux[A, R0, D0] = rest(registry._2)
+        }
+    }
+
+    object LookupCtr extends LowPrioLookupCtr {
+      type Aux[Re, A, R0, D0] = LookupCtr[Re, A] { type Repr = R0; type Deps = D0 }
+      implicit def headLookupCtr[RR, A, R0, D]
+        : LookupCtr.Aux[(Version.Entry.Aux[A, R0, D], RR), A, R0, D] =
+        new LookupCtr[(Version.Entry.Aux[A, R0, D], RR), A] {
+          type Repr = R0
+          type Deps = D
+
+          def apply(
+            registry: (Version.Entry.Aux[A, R0, D], RR)
+          ): Version.Entry.Aux[A, R0, D] =
+            registry._1
+        }
+    }
+
+    trait Replace[Re, A, R1, D] {
+      type Out
+      def apply(registry: Re, replacement: Version.Entry.Aux[A, R1, D]): Out
+    }
+
+    object Replace {
+
+      type Aux[Re, A, R1, D, Re1] = Replace[Re, A, R1, D] { type Out = Re1 }
+
+      implicit def tailReplace[A, RA, RA1, D, RT]: Replace.Aux[
+        (Version.Entry.Aux[A, RA, D], RT),
+        A,
+        RA1,
+        D,
+        (Version.Entry.Aux[A, RA1, D], RT)
+      ] =
+        new Replace[(Version.Entry.Aux[A, RA, D], RT), A, RA1, D] {
+          type Out = (Version.Entry.Aux[A, RA1, D], RT)
+          override def apply(
+            registry: (Version.Entry.Aux[A, RA, D], RT),
+            replacement: Version.Entry.Aux[A, RA1, D]
+          ): (Version.Entry.Aux[A, RA1, D], RT) = (replacement, registry._2)
+        }
+
+      implicit def headReplace[H, A, R1, D, RT, RT1](
+        implicit rest: Replace.Aux[RT, A, R1, D, RT1]
+      ): Replace.Aux[(H, RT), A, R1, D, (H, RT1)] =
+        new Replace[(H, RT), A, R1, D] {
+          type Out = (H, RT1)
+          override def apply(
+            registry: (H, RT),
+            replacement: Version.Entry.Aux[A, R1, D]
+          ): (H, RT1) =
+            (registry._1, rest(registry._2, replacement))
+        }
+    }
+
+    trait Build[Tpe, Reg] {
+      def apply(ctrReg: Reg): Tpe
+    }
+
+    object Build {
+      implicit val buildEmpty: Build[Unit, Unit] = new Build[Unit, Unit] {
+        def apply(ctrReg: Unit): Unit = ctrReg
+      }
+
+      implicit def buildVersion[A, Tpe, Reg, RA](
+        implicit rest: Build[Tpe, Reg]
+      ): Build[(Schema[A], Tpe), (Version.Entry.Aux[A, RA, Tpe], Reg)] =
+        new Build[(Schema[A], Tpe), (Version.Entry.Aux[A, RA, Tpe], Reg)] {
+
+          def apply(
+            ctrReg: (Version.Entry.Aux[A, RA, Tpe], Reg)
+          ): (Schema[A], Tpe) = {
+            val tail = rest(ctrReg._2)
+
+            (SchemaZ.untag(ctrReg._1.entry(tail)), tail)
+          }
+        }
+    }
+
+    trait Lookup[Re, A] {
+      def apply(registry: Re): Schema[A]
+    }
+
+    trait LowPrioLookup {
+      implicit def tailLookup[R1, RT, A](implicit rest: Lookup[RT, A]): Lookup[(R1, RT), A] =
+        new Lookup[(R1, RT), A] {
+          def apply(registry: (R1, RT)): Schema[A] = rest(registry._2)
+        }
+    }
+
+    object Lookup extends LowPrioLookup {
+      implicit def headLookup[RR, A]: Lookup[(Schema[A], RR), A] =
+        new Lookup[(Schema[A], RR), A] {
+          def apply(registry: (Schema[A], RR)): Schema[A] = registry._1
+        }
+    }
 
   }
 
