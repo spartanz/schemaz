@@ -14,9 +14,9 @@ object module
 
   val R = JsonSchema
 
-  implicit val primToEncoderNT = new (JsonSchema.Prim ~> Json.EncoderA) {
+  implicit val primToEncoderNT = new (JsonSchema.Prim ~> Json.Encoder) {
 
-    def apply[A](fa: JsonSchema.Prim[A]): Json.EncoderA[A] = { a =>
+    def apply[A](fa: JsonSchema.Prim[A]): Json.Encoder[A] = { a =>
       fa match {
         case JsonSchema.JsonNumber => a.toString
         case JsonSchema.JsonBool   => a.toString
@@ -38,8 +38,8 @@ object module
     )
   val homer = Person("Homer Simpson", Some(User(active = true, username = "SpiderPig")))
 
-  def mkUser[Re] =
-    (_: Registry[Re]) =>
+  val mkUser =
+    (_: Unit) =>
       record(
         "active".narrow -*>: prim(JsonSchema.JsonBool) :*: "username".narrow -*>: prim(
           JsonSchema.JsonString
@@ -47,8 +47,8 @@ object module
         Iso[(Boolean, String), User]((User.apply _).tupled)(u => (u.active, u.username))
       )
 
-  def mkAdmin[Re] =
-    (_: Registry[Re]) =>
+  val mkAdmin =
+    (_: Unit) =>
       record(
         "username".narrow -*>: prim(JsonSchema.JsonString) :*: "rights".narrow -*>: seq(
           prim(JsonSchema.JsonString)
@@ -56,11 +56,11 @@ object module
         Iso[(String, List[String]), Admin]((Admin.apply _).tupled)(a => (a.username, a.rights))
       )
 
-  def mkRole[Re: Lookup[?, User]: Lookup[?, Admin]] =
-    (r: Registry[Re]) =>
+  val mkRole =
+    (admin: Schema[Admin], user: Schema[User]) =>
       union(
-        "user".narrow -+>: r.lookup[User] :+:
-          "admin".narrow -+>: r.lookup[Admin],
+        "user".narrow -+>: user :+:
+          "admin".narrow -+>: admin,
         Iso[User \/ Admin, Role] {
           case -\/(u) => u
           case \/-(a) => a
@@ -70,12 +70,12 @@ object module
         }
       )
 
-  def mkPerson[Re: Lookup[?, Role]] =
-    (reg: Registry[Re]) =>
+  val mkPerson =
+    (role: Schema[Role]) =>
       record(
         "name".narrow -*>: prim(JsonSchema.JsonString) :*:
           "role".narrow -*>: optional(
-          reg.lookup[Role]
+          role
         ),
         Iso[(String, Option[Role]), Person]((Person.apply _).tupled)(p => (p.name, p.role))
       )
@@ -83,27 +83,24 @@ object module
   val version2 = CtrRegistry.empty
     .addEntry(mkUser)
     .addEntry(mkAdmin)
-    .addEntry(mkRole)
+    .addEntry(mkRole.tupled)
     .addEntry(mkPerson)
 
   val version2Reg = Registry.build(version2)
 
-  def userV1[Re] =
-    (r: Registry[Re]) => mkUser(r).addField("active".narrow, false)
-
-  def adminV1[Re] = (r: Registry[Re]) => mkAdmin(r).addField("username".narrow, "John Doe")
-
-  val version1 = version2
-    .migrate[User]
-    .apply(userV1)
-    .migrate[Admin]
-    .apply(adminV1)
+  val version1 = version2.replace(
+    version2
+      .migrate[User]
+      .post(_.addField("active".narrow, false))
+  )
 
   val version1Reg = Registry.build(version1)
 
-  def userV0[Re] = (r: Registry[Re]) => userV1(r).addField("username".narrow, "John Doe")
-
-  val version0 = version1.migrate[User].apply(userV0)
+  val version0 = version1.replace(
+    version1
+      .migrate[User]
+      .post(_.addField("username".narrow, "John Doe"))
+  )
 
   val version0Reg = Registry.build(version0)
 
