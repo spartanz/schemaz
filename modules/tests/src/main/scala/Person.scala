@@ -64,7 +64,7 @@ trait TestModule extends SchemaModule[JsonSchema.type] with Versioning[JsonSchem
     .schema(
       (p: Schema[Person]) =>
         iso(
-          SchemaZ.tag[Person, Person](p),
+          SchemaZ[Person, Person](p),
           Person.personToTupleIso
         )
     )

@@ -21,9 +21,9 @@ trait HasMigration[R <: Realisation] extends SchemaModule[R] {
         def apply(
           in: SchemaZ[RProd[N -*> RI, I, RR, AR], (I, AR)],
           default: I
-        ): SchemaZ[RIso[RR, AR, (I, AR)], (I, AR)] = SchemaZ.untag(in).unFix match {
+        ): SchemaZ[RIso[RR, AR, (I, AR)], (I, AR)] = in.unFix match {
           case ProdF(_, right) =>
-            iso(SchemaZ.tag(right), Iso[AR, (I, AR)](x => (default, x))(p => p._2))
+            iso(SchemaZ(right), Iso[AR, (I, AR)](x => (default, x))(p => p._2))
           case _ => ???
         }
       }
@@ -35,9 +35,9 @@ trait HasMigration[R <: Realisation] extends SchemaModule[R] {
         def apply(
           in: SchemaZ[RProd[RL, AL, N -*> RI, I], (AL, I)],
           default: I
-        ): SchemaZ[RIso[RL, AL, (AL, I)], (AL, I)] = SchemaZ.untag(in).unFix match {
+        ): SchemaZ[RIso[RL, AL, (AL, I)], (AL, I)] = in.unFix match {
           case ProdF(left, _) =>
-            iso(SchemaZ.tag(left), Iso[AL, (AL, I)](x => (x, default))(p => p._1))
+            iso(SchemaZ(left), Iso[AL, (AL, I)](x => (x, default))(p => p._1))
           case _ => ???
         }
       }
@@ -52,8 +52,8 @@ trait HasMigration[R <: Realisation] extends SchemaModule[R] {
       def apply(
         in: SchemaZ[RProd[RR, AR, RI, AI], (AR, AI)],
         default: X
-      ): SchemaZ[RProd[RR, AR, below.ROut, AI], (AR, AI)] = SchemaZ.untag(in).unFix match {
-        case ProdF(left, right) => SchemaZ.tag[RR, AR](left) :*: below(SchemaZ.tag(right), default)
+      ): SchemaZ[RProd[RR, AR, below.ROut, AI], (AR, AI)] = in.unFix match {
+        case ProdF(left, right) => SchemaZ[RR, AR](left) :*: below(SchemaZ(right), default)
         case _                  => ???
       }
     }
@@ -64,7 +64,7 @@ trait HasMigration[R <: Realisation] extends SchemaModule[R] {
       type ROut = RIso[below.ROut, AI, I]
 
       def apply(in: SchemaZ[RIso[RI, AI, I], I], default: X): SchemaZ[RIso[below.ROut, AI, I], I] =
-        SchemaZ.untag(in).unFix match {
+        in.unFix match {
           case IsoSchemaF(base, isoA) =>
             iso(below(base.asInstanceOf[SchemaZ[RI, AI]], default), isoA.asInstanceOf[Iso[AI, I]])
           case _ => ???
@@ -86,7 +86,7 @@ trait HasMigration[R <: Realisation] extends SchemaModule[R] {
 
     def addField[N <: R.ProductTermId, X](name: N, default: X)(
       implicit transfo: DoAddField[N, Rn, An, X]
-    ): SchemaZ[RRecord[transfo.ROut, An, A], A] = SchemaZ.untag(rec).unFix match {
+    ): SchemaZ[RRecord[transfo.ROut, An, A], A] = rec.unFix match {
       case RecordF(fields, isoA) =>
         record[transfo.ROut, A, An](
           transfo(fields.asInstanceOf[SchemaZ[Rn, An]], default),

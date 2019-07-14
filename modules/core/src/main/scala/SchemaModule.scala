@@ -30,8 +30,6 @@ sealed trait SchemaF[Prim[_], SumTermId, ProductTermId, F[_], A] {
   def hmap[G[_]](nt: F ~> G): SchemaF[Prim, SumTermId, ProductTermId, G, A]
 }
 
-trait SelfRef {}
-
 ////////////////////
 // The Schema ADT
 ////////////////////
@@ -262,6 +260,8 @@ object SchemaF {
 
 }
 
+trait Tagged[Repr]
+
 trait SchemaModule[R <: Realisation] {
 
   val R: R
@@ -273,11 +273,10 @@ trait SchemaModule[R <: Realisation] {
   type Schema[A] =
     Fix[SchemaF[R.Prim, R.SumTermId, R.ProductTermId, ?[_], ?], A]
 
-  type SchemaZ[Repr, A]
+  type SchemaZ[Repr, A] = Schema[A] with Tagged[Repr]
 
   object SchemaZ {
-    def tag[Repr, A](schema: Schema[A]): SchemaZ[Repr, A]    = schema.asInstanceOf[SchemaZ[Repr, A]]
-    def untag[Repr, A](schemaz: SchemaZ[Repr, A]): Schema[A] = schemaz.asInstanceOf[Schema[A]]
+    def apply[Repr, A](schema: Schema[A]): SchemaZ[Repr, A] = schema.asInstanceOf[SchemaZ[Repr, A]]
   }
 
   type ROne[F[_]]            = One[F, R.Prim, R.SumTermId, R.ProductTermId]
@@ -311,10 +310,10 @@ trait SchemaModule[R <: Realisation] {
     def -*>: [I <: R.ProductTermId](
       id: I
     ): SchemaZ[I -*> A, A] =
-      SchemaZ.tag(Fix(FieldF(id.asInstanceOf[R.ProductTermId], schema)))
+      SchemaZ(Fix(FieldF(id.asInstanceOf[R.ProductTermId], schema)))
 
     def -+>: [I <: R.SumTermId](id: I): SchemaZ[I -+> A, A] =
-      SchemaZ.tag(Fix(BranchF(id.asInstanceOf[R.SumTermId], schema)))
+      SchemaZ(Fix(BranchF(id.asInstanceOf[R.SumTermId], schema)))
 
     def to[F[_]](implicit interpreter: RInterpreter[F]): F[A] = interpreter.interpret(schema)
 
@@ -322,40 +321,38 @@ trait SchemaModule[R <: Realisation] {
 
   implicit final class SchemaZSyntax[Repr, A](schema: SchemaZ[Repr, A]) {
 
-    import SchemaZ.{ tag, untag }
-
     def :*: [R2, B](left: SchemaZ[R2, B]): SchemaZ[RProd[R2, B, Repr, A], (B, A)] =
-      tag(Fix(new ProdF(untag(left), SchemaZ.untag(schema))))
+      SchemaZ(Fix(new ProdF(left, schema)))
 
     def :+: [R2, B](left: SchemaZ[R2, B]): SchemaZ[RSum[R2, B, Repr, A], B \/ A] =
-      tag(Fix(new SumF(untag(left), untag(schema))))
+      SchemaZ(Fix(new SumF(left, schema)))
 
     def -*>: [I <: R.ProductTermId](
       id: I
     ): SchemaZ[I -*> Repr, A] =
-      tag(Fix(FieldF(id.asInstanceOf[R.ProductTermId], untag(schema))))
+      SchemaZ(Fix(FieldF(id.asInstanceOf[R.ProductTermId], schema)))
 
     def -+>: [I <: R.SumTermId](id: I): SchemaZ[I -+> Repr, A] =
-      tag(Fix(BranchF(id.asInstanceOf[R.SumTermId], untag(schema))))
+      SchemaZ(Fix(BranchF(id.asInstanceOf[R.SumTermId], schema)))
 
-    def to[F[_]](implicit interpreter: RInterpreter[F]): F[A] = interpreter.interpret(untag(schema))
+    def to[F[_]](implicit interpreter: RInterpreter[F]): F[A] = interpreter.interpret(schema)
 
-    def imap[B](_iso: Iso[A, B]): SchemaZ[RIso[Repr, A, B], B] = SchemaZ.untag(schema).unFix match {
-      case IsoSchemaF(base, i) => tag(Fix(IsoSchemaF(base, i.composeIso(_iso))))
-      case x                   => tag(Fix(IsoSchemaF(Fix(x), _iso)))
+    def imap[B](_iso: Iso[A, B]): SchemaZ[RIso[Repr, A, B], B] = schema.unFix match {
+      case IsoSchemaF(base, i) => SchemaZ(Fix(IsoSchemaF(base, i.composeIso(_iso))))
+      case x                   => SchemaZ(Fix(IsoSchemaF(Fix(x), _iso)))
     }
 
   }
 
   final def unit: SchemaZ[Unit, Unit] =
-    SchemaZ.tag(
+    SchemaZ(
       Fix(
         One()
       )
     )
 
   final def prim[A](prim: R.Prim[A]): SchemaZ[A, A] =
-    SchemaZ.tag(
+    SchemaZ(
       Fix(
         PrimSchemaF(prim)
       )
@@ -365,14 +362,14 @@ trait SchemaModule[R <: Realisation] {
     choices: SchemaZ[Repr, AE],
     iso: Iso[AE, A]
   ): SchemaZ[RUnion[Repr, AE, A], A] =
-    SchemaZ.tag(Fix(UnionF(SchemaZ.untag(choices), iso)))
+    SchemaZ(Fix(UnionF(choices, iso)))
 
   final def optional[A](
     aSchema: Schema[A]
   ): SchemaZ[RIso[RSum[A, A, Unit, Unit], A \/ Unit, Option[A]], Option[A]] =
     iso(
-      SchemaZ.tag[RSum[A, A, Unit, Unit], A \/ Unit](
-        Fix(SumF(aSchema, SchemaZ.untag(unit)))
+      SchemaZ[RSum[A, A, Unit, Unit], A \/ Unit](
+        Fix(SumF(aSchema, unit))
       ),
       Iso[A \/ Unit, Option[A]](_.swap.toOption)(_.fold[A \/ Unit](\/-(()))(-\/(_)))
     )
@@ -381,19 +378,19 @@ trait SchemaModule[R <: Realisation] {
     terms: SchemaZ[Repr, An],
     isoA: Iso[An, A]
   ): SchemaZ[RRecord[Repr, An, A], A] =
-    SchemaZ.tag(Fix(RecordF(SchemaZ.untag(terms), isoA)))
+    SchemaZ(Fix(RecordF(terms, isoA)))
 
   final def seq[Repr, A](element: SchemaZ[Repr, A]): SchemaZ[RSeq[Repr, A], List[A]] =
-    SchemaZ.tag(Fix(SeqF(SchemaZ.untag(element))))
+    SchemaZ(Fix(SeqF(element)))
 
   final def iso[Repr, A0, A](
     base: SchemaZ[Repr, A0],
     iso: Iso[A0, A]
   ): SchemaZ[RIso[Repr, A0, A], A] =
-    SchemaZ.tag(Fix(IsoSchemaF(SchemaZ.untag(base), iso)))
+    SchemaZ(Fix(IsoSchemaF(base, iso)))
 
   final def self[A](root: => Schema[A]): SchemaZ[RSelf[A], A] =
-    SchemaZ.tag(
+    SchemaZ(
       Fix(
         SelfReference(() => root, new (Schema ~> Schema) {
           def apply[X](a: Schema[X]) = a

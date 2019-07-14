@@ -26,7 +26,7 @@ object SchemaModuleExamples {
           Iso[List[String], Admin](Admin.apply)(_.rights)
         )
 
-        SchemaZ.untag(adminSchema.imap(adminToListIso).imap(listToSeqIso)).unFix match {
+        adminSchema.imap(adminToListIso).imap(listToSeqIso).unFix match {
           case IsoSchemaF(base, _) => assert(base == adminSchema)
           case _                   => assert(false)
         }

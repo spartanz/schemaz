@@ -248,7 +248,7 @@ trait Versioning[R <: Realisation] extends SchemaModule[R] {
           ): (Schema[A], Tpe) = {
             val tail = rest(ctrReg._2)
 
-            (SchemaZ.untag(ctrReg._1.entry(tail)), tail)
+            (ctrReg._1.entry(tail), tail)
           }
         }
     }
