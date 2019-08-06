@@ -1,6 +1,6 @@
 package schemaz
 
-import scalaz.~>
+import scalaz.{ ~> }
 
 package recursion {
 
@@ -14,12 +14,15 @@ package recursion {
 
   object HEnvT {
 
-    implicit def hfunctor[E, F[_[_], _]](implicit F: HFunctor[F]): HFunctor[HEnvT[E, F, ?[_], ?]] =
+    implicit def hfunctor[E, F[_[_], _]](
+      implicit F: HFunctor[F]
+    ): HFunctor[HEnvT[E, F, ?[_], ?]] =
       new HFunctor[HEnvT[E, F, ?[_], ?]] {
 
-        def hmap[M[_], N[_]](nt: M ~> N) = new (HEnvT[E, F, M, ?] ~> HEnvT[E, F, N, ?]) {
-          def apply[I](fm: HEnvT[E, F, M, I]) = HEnvT(fm.ask, F.hmap(nt)(fm.fa))
-        }
+        def hmap[M[_], N[_]](nt: M ~> N) =
+          new (HEnvT[E, F, M, ?] ~> HEnvT[E, F, N, ?]) {
+            def apply[I](fm: HEnvT[E, F, M, I]) = HEnvT(fm.ask, F.hmap(nt)(fm.fa))
+          }
       }
   }
 }
@@ -34,10 +37,13 @@ package object recursion {
     new (Fix[S, ?] ~> F) { self =>
 
       def apply[A](f: Fix[S, A]): F[A] =
-        alg.apply[A](S.hmap(self)(f.unFix))
+        alg(S.hmap(self)(f.unFix))
     }
 
-  def hyloNT[S[_[_], _], F[_], G[_]](coalgebra: HCoalgebra[S, F], algebra: HAlgebra[S, G])(
+  def hyloNT[S[_[_], _], F[_], G[_]](
+    coalgebra: HCoalgebra[S, F],
+    algebra: HAlgebra[S, G]
+  )(
     implicit S: HFunctor[S]
   ): F ~> G = new (F ~> G) { self =>
 

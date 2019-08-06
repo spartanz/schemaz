@@ -26,16 +26,16 @@ trait JsonModule[R <: Realisation] extends SchemaModule[R] {
       def apply[A](schema: RSchema[Encoder, A]): Encoder[A] =
         schema match {
 
-          case PrimSchemaF(prim)  => primNT(prim)
-          case ProdF(left, right) => (a => left(a._1) + "," + right(a._2))
-          case SumF(left, right)  => (a => a.fold(left, right))
-          case i: IsoSchema[Encoder, _, A] =>
+          case p: RPrim[Encoder, a] => primNT(p.prim)
+          case ProdF(left, right)   => (a => left(a._1) + "," + right(a._2))
+          case SumF(left, right)    => (a => a.fold(left, right))
+          case i: IsoSchema[Encoder, _, a] =>
             i.base.compose(i.iso.reverseGet)
-          case r: Record[Encoder, _, A] =>
+          case r: Record[Encoder, _, a] =>
             encloseInBraces.compose(r.fields).compose(r.iso.reverseGet)
           case SeqF(element)    => (a => a.map(element).mkString("[", ",", "]"))
           case FieldF(id, base) => makeField(fieldLabel(id)).compose(base)
-          case u: Union[Encoder, _, A] =>
+          case u: Union[Encoder, _, a] =>
             encloseInBraces.compose(u.choices).compose(u.iso.reverseGet)
           case BranchF(id, base)         => makeField(branchLabel(id)).compose(base)
           case One()                     => (_ => "null")

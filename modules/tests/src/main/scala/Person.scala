@@ -4,10 +4,12 @@ package tests
 import scalaz.{ -\/, \/, \/- }
 import monocle.Iso
 
+import shapeless.syntax.singleton._
+
 final case class Person(name: String, role: Option[Role])
 sealed trait Role
-final case class User(active: Boolean, boss: Person) extends Role
-final case class Admin(rights: List[String])         extends Role
+final case class User(active: Boolean)       extends Role
+final case class Admin(rights: List[String]) extends Role
 
 object Person {
 
@@ -17,43 +19,56 @@ object Person {
   val personToTupleIso = Iso[Person, (Seq[Char], Option[Role])](f)(g)
 }
 
-trait TestModule extends SchemaModule[JsonSchema.type] {
+trait TestModule extends SchemaModule[JsonSchema.type] with Versioning[JsonSchema.type] {
   val R = JsonSchema
 
   type PersonTuple = (Seq[Char], Option[Role])
 
-  val user = record(
-    "active" -*>: prim(JsonSchema.JsonBool) :*: "boss" -*>: self(person),
-    Iso[(Boolean, Person), User]((User.apply _).tupled)(u => (u.active, u.boss))
-  )
+  val current = Current
+    .schema(
+      record(
+        "active".narrow -*>: prim(JsonSchema.JsonBool),
+        Iso[Boolean, User](User.apply)(u => u.active)
+      )
+    )
+    .schema(
+      record(
+        "rights".narrow -*>: seq(prim(JsonSchema.JsonString)),
+        Iso[List[String], Admin](Admin.apply)(_.rights)
+      )
+    )
+    .schema(
+      (u: Schema[User], a: Schema[Admin]) =>
+        union(
+          "user".narrow -+>: u :+:
+            "admin".narrow -+>: a,
+          Iso[User \/ Admin, Role] {
+            case -\/(u) => u
+            case \/-(a) => a
+          } {
+            case u @ User(_)  => -\/(u)
+            case a @ Admin(_) => \/-(a)
+          }
+        )
+    )
+    .schema(
+      (r: Schema[Role]) =>
+        record(
+          "name".narrow -*>: prim(JsonSchema.JsonString) :*:
+            "role".narrow -*>: optional(
+            r
+          ),
+          Iso[(String, Option[Role]), Person]((Person.apply _).tupled)(p => (p.name, p.role))
+        )
+    )
+    .schema(
+      (p: Schema[Person]) =>
+        iso(
+          SchemaZ[Person, Person](p),
+          Person.personToTupleIso
+        )
+    )
 
-  val admin = record(
-    "rights" -*>: seq(prim(JsonSchema.JsonString)),
-    Iso[List[String], Admin](Admin.apply)(_.rights)
-  )
-
-  val role = union(
-    "user" -+>: user :+:
-      "admin" -+>: admin,
-    Iso[User \/ Admin, Role] {
-      case -\/(u) => u
-      case \/-(a) => a
-    } {
-      case u @ User(_, _) => -\/(u)
-      case a @ Admin(_)   => \/-(a)
-    }
-  )
-
-  def person: Schema[Person] = record(
-    "name" -*>: prim(JsonSchema.JsonString) :*:
-      "role" -*>: optional(
-      role
-    ),
-    Iso[(String, Option[Role]), Person]((Person.apply _).tupled)(p => (p.name, p.role))
-  )
-
-  val personTupleSchema = iso[Person, PersonTuple](
-    person,
-    Person.personToTupleIso
-  )
+  val person            = current.lookup[Person]
+  val personTupleSchema = current.lookup[PersonTuple]
 }

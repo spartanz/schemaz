@@ -29,7 +29,7 @@ object GenModuleExamples {
         val module = new TestModule with GenModule[JsonSchema.type] with PrimToGen {}
         import module._
 
-        val personGen: Gen[PersonTuple] = personTupleSchema.to[Gen]
+        val personGen: Gen[PersonTuple] = module.current.lookup[PersonTuple].to[Gen]
 
         val prop = forAll {
           (seed1: Long, seed2: Long) =>
@@ -58,7 +58,7 @@ object GenModuleExamples {
       test("Convert Schema to Gen with Generic Module") { () =>
         val module = new TestModule with GenericGenModule[JsonSchema.type] with PrimToGen {}
         import module._
-        val personGen: Gen[PersonTuple] = personTupleSchema.to[Gen]
+        val personGen: Gen[PersonTuple] = module.current.lookup[PersonTuple].to[Gen]
 
         val prop = forAll {
           (seed1: Long, seed2: Long) =>

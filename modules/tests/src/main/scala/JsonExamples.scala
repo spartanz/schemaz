@@ -35,7 +35,6 @@ object JsonExamples {
         val serializer: Encoder[Person] = person.to[Encoder]
 
 //        type PersonTuple = (Seq[Char], Option[Role])
-        val personTupleSchema = iso(person, Person.personToTupleIso)
 
         val isoSerializer = personTupleSchema.to[Encoder]
 
@@ -44,7 +43,7 @@ object JsonExamples {
         val testCases: List[(Person, String)] = List(
           Person(null, None)                                          -> """{"name":"null", "role": null}""",
           boss                                                        -> """{"name":"Alfred", "role": null}""",
-          Person("Alfred the Second", Some(User(true, boss)))         -> """{"name":"Alfred the Second", "role": {"user": {"active":true, "boss":{"name": "Alfred", "role": null}}}}""",
+          Person("Alfred the Second", Some(User(true)))               -> """{"name":"Alfred the Second", "role": {"user": {"active":true}}}""",
           Person("Alfred the Third", Some(Admin(List("sys", "dev")))) -> """{"name":"Alfred the Third", "role": {"admin": {"rights": ["sys", "dev"]}}}"""
         )
 
