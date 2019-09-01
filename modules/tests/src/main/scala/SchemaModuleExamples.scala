@@ -21,13 +21,15 @@ object SchemaModuleExamples {
         val adminToListIso  = Iso[Admin, List[String]](_.rights)(Admin.apply)
         def listToSeqIso[A] = Iso[List[A], Seq[A]](_.toSeq)(_.toList)
 
-        val adminSchema = record(
-          "rights" -*>: seq(prim(JsonSchema.JsonString)),
+        val adminRecord = "rights" -*>: seq(prim(JsonSchema.JsonString))
+
+        val adminSchema = caseClass(
+          adminRecord,
           Iso[List[String], Admin](Admin.apply)(_.rights)
         )
 
         adminSchema.imap(adminToListIso).imap(listToSeqIso).unFix match {
-          case IsoSchemaF(base, _) => assert(base == adminSchema)
+          case IsoSchemaF(base, _) => assert(base == record(adminRecord))
           case _                   => assert(false)
         }
       }

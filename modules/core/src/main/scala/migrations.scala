@@ -82,13 +82,15 @@ trait HasMigration[R <: Realisation] extends SchemaModule[R] {
       }
   }
 
-  implicit class MigrationRecordOps[Rn: IsRecord, An, A](rec: SchemaZ[RRecord[Rn, An, A], A]) {
+  implicit class MigrationRecordOps[Rn: IsRecord, An, A](
+    rec: SchemaZ[RIso[RRecord[Rn, An], An, A], A]
+  ) {
 
     def addField[N <: R.ProductTermId, X](name: N, default: X)(
       implicit transfo: DoAddField[N, Rn, An, X]
-    ): SchemaZ[RRecord[transfo.ROut, An, A], A] = rec.unFix match {
-      case RecordF(fields, isoA) =>
-        record[transfo.ROut, A, An](
+    ): SchemaZ[RIso[RRecord[transfo.ROut, An], An, A], A] = rec.unFix match {
+      case IsoSchemaF(recursion.Fix(RecordF(fields)), isoA) =>
+        caseClass[transfo.ROut, An, A](
           transfo(fields.asInstanceOf[SchemaZ[Rn, An]], default),
           isoA.asInstanceOf[Iso[An, A]]
         )(

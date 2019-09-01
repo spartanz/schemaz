@@ -31,12 +31,12 @@ trait JsonModule[R <: Realisation] extends SchemaModule[R] {
           case SumF(left, right)    => (a => a.fold(left, right))
           case i: IsoSchema[Encoder, _, a] =>
             i.base.compose(i.iso.reverseGet)
-          case r: Record[Encoder, _, a] =>
-            encloseInBraces.compose(r.fields).compose(r.iso.reverseGet)
+          case r: Record[Encoder, a] =>
+            encloseInBraces.compose(r.fields)
           case SeqF(element)    => (a => a.map(element).mkString("[", ",", "]"))
           case FieldF(id, base) => makeField(fieldLabel(id)).compose(base)
-          case u: Union[Encoder, _, a] =>
-            encloseInBraces.compose(u.choices).compose(u.iso.reverseGet)
+          case u: Union[Encoder, a] =>
+            encloseInBraces.compose(u.choices)
           case BranchF(id, base)         => makeField(branchLabel(id)).compose(base)
           case One()                     => (_ => "null")
           case ref @ SelfReference(_, _) => (a => ref.unroll(a))

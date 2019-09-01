@@ -20,8 +20,8 @@ object Representation {
   type RSeq[R, A]
   type -*>[K, V]
   type -+>[K, V]
-  type RRecord[RA, An, A]
-  type RUnion[RA, An, A]
+  type RRecord[RA, A]
+  type RUnion[RA, A]
 }
 
 import Representation._
@@ -102,13 +102,12 @@ final case class BranchF[F[_], A, Prim[_], SumTermId, ProductTermId](
  * An union, eg. a sum of named branches
  * This class cannot be constructed directly, you must use the `SchemaModule#union` method.
  */
-final case class UnionF[F[_], A, AE, Prim[_], SumTermId, ProductTermId](
-  choices: F[AE],
-  iso: Iso[AE, A]
+final case class UnionF[F[_], A, Prim[_], SumTermId, ProductTermId](
+  choices: F[A]
 ) extends SchemaF[Prim, SumTermId, ProductTermId, F, A] {
 
   def hmap[G[_]](nt: F ~> G): SchemaF[Prim, SumTermId, ProductTermId, G, A] =
-    UnionF[G, A, AE, Prim, SumTermId, ProductTermId](nt(choices), iso)
+    UnionF[G, A, Prim, SumTermId, ProductTermId](nt(choices))
 }
 
 /**
@@ -127,15 +126,14 @@ final case class FieldF[F[_], A, Prim[_], SumTermId, ProductTermId](
  * A record, eg. a product of named fields
  * This class cannot be constructed directly, you must use the `SchemaModule#record` method.
  */
-final case class RecordF[F[_], A, AP, Prim[_], SumTermId, ProductTermId](
-  fields: F[AP],
-  iso: Iso[AP, A]
+final case class RecordF[F[_], A, Prim[_], SumTermId, ProductTermId](
+  fields: F[A]
 ) extends SchemaF[Prim, SumTermId, ProductTermId, F, A] {
 
   def hmap[G[_]](
     nt: F ~> G
   ): SchemaF[Prim, SumTermId, ProductTermId, G, A] =
-    RecordF[G, A, AP, Prim, SumTermId, ProductTermId](nt(fields), iso)
+    RecordF[G, A, Prim, SumTermId, ProductTermId](nt(fields))
 }
 
 /**
@@ -284,9 +282,9 @@ trait SchemaModule[R <: Realisation] {
   type Sum[F[_], A, B]       = SumF[F, A, B, R.Prim, R.SumTermId, R.ProductTermId]
   type Prod[F[_], A, B]      = ProdF[F, A, B, R.Prim, R.SumTermId, R.ProductTermId]
   type Branch[F[_], A]       = BranchF[F, A, R.Prim, R.SumTermId, R.ProductTermId]
-  type Union[F[_], AE, A]    = UnionF[F, A, AE, R.Prim, R.SumTermId, R.ProductTermId]
+  type Union[F[_], A]        = UnionF[F, A, R.Prim, R.SumTermId, R.ProductTermId]
   type Field[F[_], A]        = FieldF[F, A, R.Prim, R.SumTermId, R.ProductTermId]
-  type Record[F[_], An, A]   = RecordF[F, A, An, R.Prim, R.SumTermId, R.ProductTermId]
+  type Record[F[_], A]       = RecordF[F, A, R.Prim, R.SumTermId, R.ProductTermId]
   type Sequence[F[_], A]     = SeqF[F, A, R.Prim, R.SumTermId, R.ProductTermId]
   type IsoSchema[F[_], A, B] = IsoSchemaF[F, A, B, R.Prim, R.SumTermId, R.ProductTermId]
   type Self[F[_], A]         = SelfReference[Any, F, A, R.Prim, R.SumTermId, R.ProductTermId]
@@ -358,11 +356,16 @@ trait SchemaModule[R <: Realisation] {
       )
     )
 
-  final def union[Repr: IsUnion, A, AE](
-    choices: SchemaZ[Repr, AE],
-    iso: Iso[AE, A]
-  ): SchemaZ[RUnion[Repr, AE, A], A] =
-    SchemaZ(Fix(UnionF(choices, iso)))
+  final def union[Repr: IsUnion, A](
+    choices: SchemaZ[Repr, A]
+  ): SchemaZ[RUnion[Repr, A], A] =
+    SchemaZ(Fix(UnionF(choices)))
+
+  final def sealedTrait[Repr: IsUnion, Branches, A](
+    branches: SchemaZ[Repr, Branches],
+    isoA: Iso[Branches, A]
+  ): SchemaZ[RIso[RUnion[Repr, Branches], Branches, A], A] =
+    iso(union(branches), isoA)
 
   final def optional[A](
     aSchema: Schema[A]
@@ -374,11 +377,16 @@ trait SchemaModule[R <: Realisation] {
       Iso[A \/ Unit, Option[A]](_.swap.toOption)(_.fold[A \/ Unit](\/-(()))(-\/(_)))
     )
 
-  final def record[Repr: IsRecord, A, An](
-    terms: SchemaZ[Repr, An],
-    isoA: Iso[An, A]
-  ): SchemaZ[RRecord[Repr, An, A], A] =
-    SchemaZ(Fix(RecordF(terms, isoA)))
+  final def record[Repr: IsRecord, A](
+    terms: SchemaZ[Repr, A]
+  ): SchemaZ[RRecord[Repr, A], A] =
+    SchemaZ(Fix(RecordF(terms)))
+
+  final def caseClass[Repr: IsRecord, Fields, A](
+    fields: SchemaZ[Repr, Fields],
+    isoA: Iso[Fields, A]
+  ): SchemaZ[RIso[RRecord[Repr, Fields], Fields, A], A] =
+    iso(record(fields), isoA)
 
   final def seq[Repr, A](element: SchemaZ[Repr, A]): SchemaZ[RSeq[Repr, A], List[A]] =
     SchemaZ(Fix(SeqF(element)))
