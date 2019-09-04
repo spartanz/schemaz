@@ -135,7 +135,7 @@ To build a record from a product of labelled fields, we also need to provide an 
 ```tut
 val tupleToGreeting = Iso[(String, String), Greeting]((Greeting.apply _).tupled)(g => (g.from, g.to))
 
-val greeting = record(
+val greeting = caseClass(
   "from" -*>: prim(JsonString) :*:
   "to"   -*>: prim(JsonString),
   tupleToGreeting
@@ -159,7 +159,7 @@ val sumToMessage = Iso[Greeting \/ Bye.type, Message]{
   case Bye                => \/-(Bye)
 }
 
-val message = union(
+val message = sealedTrait(
   "Greeting" -+>: greeting :+:
   "Bye"      -+>: bye,
   sumToMessage
@@ -203,9 +203,9 @@ val eitherToTree = Iso[Node \/ Leaf, Tree]({
   case l: Leaf => \/-(l)
 })
 
-lazy val tree: Schema[Tree] = union(
-  "Node" -+>: record("l" -*>: self(tree) :*: "r" -*>: self(tree), pairToNode) :+: 
-  "Leaf" -+>: record("label" -*>: prim(JsonString), stringToLeaf), 
+lazy val tree: Schema[Tree] = sealedTrait(
+  "Node" -+>: caseClass("l" -*>: self(tree) :*: "r" -*>: self(tree), pairToNode) :+: 
+  "Leaf" -+>: caseClass("label" -*>: prim(JsonString), stringToLeaf), 
   eitherToTree
 )
 ```
