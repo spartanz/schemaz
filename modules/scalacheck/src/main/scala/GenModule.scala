@@ -22,10 +22,10 @@ trait GenModule[R <: Realisation] extends SchemaModule[R] {
             } yield (l, r)
           case SumF(left, right)         => Gen.oneOf(left.map(-\/(_)), right.map(\/-(_)))
           case IsoSchemaF(base, iso)     => base.map(iso.get)
-          case RecordF(fields, iso)      => fields.map(iso.get)
+          case RecordF(fields)           => fields
           case SeqF(element)             => Gen.listOf(element)
           case FieldF(_, base)           => base
-          case UnionF(choices, iso)      => choices.map(iso.get)
+          case UnionF(choices)           => choices
           case BranchF(_, base)          => base
           case One()                     => Gen.const(())
           case ref @ SelfReference(_, _) => Gen.delay(ref.unroll)

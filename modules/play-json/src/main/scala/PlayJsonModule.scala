@@ -29,7 +29,7 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
 
       def apply[A](seed: LabelledSchema[A]): HEnvT[Boolean, RSchema, LabelledSchema, A] =
         seed match {
-          case (x, Fix(r @ RecordF(_, _))) => HEnvT(x, r.hmap(ascribeWith(true)))
+          case (x, Fix(r @ RecordF(_))) => HEnvT(x, r.hmap(ascribeWith(true)))
           case (x, Fix(ProdF(left, right))) =>
             HEnvT(
               x,
@@ -111,11 +111,11 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
                   .and((JsPath \ "_2").read(p.right))((x: a, y: b) => (x, y))
             case PrimSchemaF(p)      => primNT(p)
             case BranchF(id, schema) => undefinedAsNull(branchLabel(id), schema)
-            case u: Union[Reads, a, A] =>
-              u.choices.map(u.iso.get)
+            case u: Union[Reads, a] =>
+              u.choices
             case FieldF(id, schema) => undefinedAsNull(fieldLabel(id), schema)
-            case r: Record[Reads, a, A] =>
-              r.fields.map(r.iso.get)
+            case r: Record[Reads, a] =>
+              r.fields
             case SeqF(elem) =>
               Reads {
                 case JsArray(elems) =>
@@ -159,9 +159,9 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
                 )
             case PrimSchemaF(p)             => primNT(p)
             case BranchF(id, s)             => Writes(a => Json.obj(branchLabel(id) -> s.writes(a)))
-            case u: Union[Writes, a, A]     => u.choices.contramap(u.iso.reverseGet)
+            case u: Union[Writes, a]        => u.choices
             case FieldF(id, s)              => Writes(a => Json.obj(fieldLabel(id) -> s.writes(a)))
-            case r: Record[Writes, a, A]    => r.fields.contramap(r.iso.reverseGet)
+            case r: Record[Writes, a]       => r.fields
             case SeqF(elem)                 => Writes(seq => JsArray(seq.map(elem.writes(_))))
             case i: IsoSchema[Writes, a, A] => i.base.contramap(i.iso.reverseGet)
             case ref @ SelfReference(_, _)  => Writes(ref.unroll.writes)

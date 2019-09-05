@@ -26,20 +26,20 @@ trait TestModule extends SchemaModule[JsonSchema.type] with Versioning[JsonSchem
 
   val current = Current
     .schema(
-      record(
+      caseClass(
         "active".narrow -*>: prim(JsonSchema.JsonBool),
         Iso[Boolean, User](User.apply)(u => u.active)
       )
     )
     .schema(
-      record(
+      caseClass(
         "rights".narrow -*>: seq(prim(JsonSchema.JsonString)),
         Iso[List[String], Admin](Admin.apply)(_.rights)
       )
     )
     .schema(
       (u: Schema[User], a: Schema[Admin]) =>
-        union(
+        sealedTrait(
           "user".narrow -+>: u :+:
             "admin".narrow -+>: a,
           Iso[User \/ Admin, Role] {
@@ -53,7 +53,7 @@ trait TestModule extends SchemaModule[JsonSchema.type] with Versioning[JsonSchem
     )
     .schema(
       (r: Schema[Role]) =>
-        record(
+        caseClass(
           "name".narrow -*>: prim(JsonSchema.JsonString) :*:
             "role".narrow -*>: optional(
             r
