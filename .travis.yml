@@ -1,10 +1,9 @@
+dist: xenial
 language: scala
-dist: trusty
-sudo: false
 scala:
-- 2.12.6
+  - 2.12.10
 jdk:
-- oraclejdk8
+  - openjdk8
 before_install:
 - '[ -z "${travis_key_password}" ] || openssl aes-256-cbc -k $travis_key_password
   -d -md sha256 -a -in travis-deploy-key.enc -out travis-deploy-key -d'
