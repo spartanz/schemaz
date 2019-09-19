@@ -1,7 +1,7 @@
 package schemaz
 
 trait Versioning[R <: Realisation] extends SchemaModule[R] {
-
+  /*
   final val Current: Version[Unit, Unit] = new Version(())
 
   sealed case class Version[Types, Re](registry: Re)(
@@ -10,40 +10,42 @@ trait Versioning[R <: Realisation] extends SchemaModule[R] {
 
     lazy val types: Types = build(registry)
 
-    def schema[A, RA](leaf: SchemaZ[RA, A])(
+    def schema[P[_, _], A, RA, T](leaf: SchemaZ[P, RA, A, T])(
       implicit add: Version.AddEntry[Types, Unit, A, RA]
     ): Version[(Schema[A], Types), (Version.Entry.Aux[A, RA, Types], Re)] =
       new Version((add(Version.Entry((_: Unit) => leaf)), registry))
 
-    def schema[A, RA, D](ctr: D => SchemaZ[RA, A])(
+    def schema[P[_, _], A, RA, D, T](ctr: D => SchemaZ[P, RA, A, T])(
       implicit add: Version.AddEntry[Types, D, A, RA]
     ): Version[(Schema[A], Types), (Version.Entry.Aux[A, RA, Types], Re)] =
       new Version(
         (add(Version.Entry(ctr)), registry)
       )
 
-    def schema[A, RA, D1, D2](ctr: (D1, D2) => SchemaZ[RA, A])(
+    def schema[P[_, _], A, RA, D1, D2, T](ctr: (D1, D2) => SchemaZ[P, RA, A, T])(
       implicit add: Version.AddEntry[Types, (D1, D2), A, RA]
     ): Version[(Schema[A], Types), (Version.Entry.Aux[A, RA, Types], Re)] =
       new Version(
         (add(Version.Entry(ctr.tupled)), registry)
       )
 
-    def schema[A, RA, D1, D2, D3](ctr: (D1, D2, D3) => SchemaZ[RA, A])(
+    def schema[P[_, _], A, RA, D1, D2, D3, T](ctr: (D1, D2, D3) => SchemaZ[P, RA, A, T])(
       implicit add: Version.AddEntry[Types, (D1, D2, D3), A, RA]
     ): Version[(Schema[A], Types), (Version.Entry.Aux[A, RA, Types], Re)] =
       new Version(
         (add(Version.Entry(ctr.tupled)), registry)
       )
 
-    def schema[A, RA, D1, D2, D3, D4](ctr: (D1, D2, D3, D4) => SchemaZ[RA, A])(
+    def schema[P[_, _], A, RA, D1, D2, D3, D4, T](ctr: (D1, D2, D3, D4) => SchemaZ[P, RA, A, T])(
       implicit add: Version.AddEntry[Types, (D1, D2, D3, D4), A, RA]
     ): Version[(Schema[A], Types), (Version.Entry.Aux[A, RA, Types], Re)] =
       new Version(
         (add(Version.Entry(ctr.tupled)), registry)
       )
 
-    def schema[A, RA, D1, D2, D3, D4, D5](ctr: (D1, D2, D3, D4, D5) => SchemaZ[RA, A])(
+    def schema[P[_, _], A, RA, D1, D2, D3, D4, D5, T](
+      ctr: (D1, D2, D3, D4, D5) => SchemaZ[P, RA, A, T]
+    )(
       implicit add: Version.AddEntry[Types, (D1, D2, D3, D4, D5), A, RA]
     ): Version[(Schema[A], Types), (Version.Entry.Aux[A, RA, Types], Re)] =
       new Version(
@@ -72,48 +74,51 @@ trait Versioning[R <: Realisation] extends SchemaModule[R] {
 
   object Version {
 
-    trait Entry[A] {
+    trait Entry[P[_, _], A, T] {
       type Deps
       type Repr
-      val entry: Deps => SchemaZ[Repr, A]
-      def pre[D0](f: D0 => Deps): Entry.Aux[A, Repr, D0]
-      def post[R0](f: SchemaZ[Repr, A] => SchemaZ[R0, A]): Entry.Aux[A, R0, Deps]
+      val entry: Deps => SchemaZ[P, Repr, A, T]
+      def pre[D0](f: D0 => Deps): Entry.Aux[P, A, T, Repr, D0]
+      def post[R0](f: SchemaZ[P, Repr, A, T] => SchemaZ[P, R0, A, T]): Entry.Aux[P, A, T, R0, Deps]
     }
 
     object Entry {
-      type Aux[A, RA, D] = Entry[A] { type Deps = D; type Repr = RA }
+      type Aux[P[_, _], A, T, RA, D] = Entry[P, A, T] { type Deps = D; type Repr = RA }
 
-      def apply[A, RA, D](ctr: D => SchemaZ[RA, A]): Aux[A, RA, D] =
-        VersionEntry[A, RA, D](ctr)
+      def apply[P[_, _], A, T, RA, D](ctr: D => SchemaZ[P, RA, A, T]): Aux[P, A, T, RA, D] =
+        VersionEntry[P, A, T, RA, D](ctr)
     }
-    case class VersionEntry[A, RA, D](entry: D => SchemaZ[RA, A]) extends Entry[A] {
+    case class VersionEntry[P[_, _], A, T, RA, D](entry: D => SchemaZ[P, RA, A, T])
+        extends Entry[P, A, T] {
       type Deps = D
       type Repr = RA
 
-      def pre[D0](f: D0 => Deps): Entry.Aux[A, Repr, D0] = Entry(entry.compose(f))
+      def pre[D0](f: D0 => Deps): Entry.Aux[P, A, T, Repr, D0] = Entry(entry.compose(f))
 
-      def post[R0](f: SchemaZ[Repr, A] => SchemaZ[R0, A]): Entry.Aux[A, R0, Deps] =
+      def post[R0](
+        f: SchemaZ[P, Repr, A, T] => SchemaZ[P, R0, A, T]
+      ): Entry.Aux[P, A, T, R0, Deps] =
         Entry(entry.andThen(f))
 
     }
 
-    trait AddEntry[Re, D, A, RA] {
+    trait AddEntry[P[_, _], Re, D, A, RA, T] {
       def prepare: Re => D
 
       def apply(
-        newEntry: Version.Entry.Aux[A, RA, D]
-      ): Version.Entry.Aux[A, RA, Re] =
+        newEntry: Version.Entry.Aux[P, A, T, RA, D]
+      ): Version.Entry.Aux[P, A, T, RA, Re] =
         newEntry.pre(prepare)
     }
 
     object AddEntry {
 
-      implicit def noDependencies[Re, A, RA]: AddEntry[Re, Unit, A, RA] =
-        new AddEntry[Re, Unit, A, RA] { def prepare: Re => Unit = _ => () }
+      implicit def noDependencies[P[_, _], Re, A, RA, T]: AddEntry[P, Re, Unit, A, RA, T] =
+        new AddEntry[P, Re, Unit, A, RA, T] { def prepare: Re => Unit = _ => () }
 
-      implicit def singleDependency[Re, D, A, RA](
+      implicit def singleDependency[P[_, _], Re, D, A, RA, T](
         implicit D: Version.Lookup[Re, D]
-      ): AddEntry[Re, Schema[D], A, RA] = new AddEntry[Re, Schema[D], A, RA] {
+      ): AddEntry[P, Re, Schema[D], A, RA, T] = new AddEntry[P, Re, Schema[D], A, RA, T] {
         def prepare: Re => Schema[D] = (re => D(re))
       }
 
@@ -272,5 +277,5 @@ trait Versioning[R <: Realisation] extends SchemaModule[R] {
     }
 
   }
-
+ */
 }

@@ -29,8 +29,6 @@ trait JsonModule[R <: Realisation] extends SchemaModule[R] {
           case p: RPrim[Encoder, a] => primNT(p.prim)
           case ProdF(left, right)   => (a => left(a._1) + "," + right(a._2))
           case SumF(left, right)    => (a => a.fold(left, right))
-          case i: IsoSchema[Encoder, _, a] =>
-            i.base.compose(i.iso.reverseGet)
           case r: Record[Encoder, a] =>
             encloseInBraces.compose(r.fields)
           case SeqF(element)    => (a => a.map(element).mkString("[", ",", "]"))
