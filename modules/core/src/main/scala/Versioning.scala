@@ -1,7 +1,7 @@
 package schemaz
 
 trait Versioning[R <: Realisation] extends SchemaModule[R] {
-
+  /*
   final val Current: Version[Unit, Unit] = new Version(())
 
   sealed case class Version[Types, Re](registry: Re)(
@@ -326,5 +326,5 @@ trait Versioning[R <: Realisation] extends SchemaModule[R] {
     }
 
   }
-
+ */
 }
