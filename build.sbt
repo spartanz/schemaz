@@ -3,7 +3,7 @@ val monocleVersion    = "1.5.0"
 val derivingVersion   = "1.0.0"
 val scalacheckVersion = "1.14.0"
 
-ThisBuild / scalaVersion := "2.12.8"
+ThisBuild / scalaVersion := "2.12.10"
 ThisBuild / useSuperShell := false
 lazy val root = project
   .in(file("."))
@@ -98,7 +98,7 @@ lazy val microsite = project
     micrositeGithubOwner := "scalaz",
     micrositeGithubRepo := "schemaz",
     micrositeFavicons := Seq(microsites.MicrositeFavicon("favicon.png", "512x512")),
-    micrositeDocumentationUrl := "docs/schemas.html",
+    micrositeDocumentationUrl := "schemas/",
     micrositeDocumentationLabelDescription := "Documentation",
     micrositeBaseUrl := "/schemaz",
     micrositePalette := Map(
