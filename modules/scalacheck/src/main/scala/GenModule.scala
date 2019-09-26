@@ -21,7 +21,6 @@ trait GenModule[R <: Realisation] extends SchemaModule[R] {
               r <- right
             } yield (l, r)
           case SumF(left, right)         => Gen.oneOf(left.map(-\/(_)), right.map(\/-(_)))
-          case IsoSchemaF(base, iso)     => base.map(iso.get)
           case RecordF(fields)           => fields
           case SeqF(element)             => Gen.listOf(element)
           case FieldF(_, base)           => base
