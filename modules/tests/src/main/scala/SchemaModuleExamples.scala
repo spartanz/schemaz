@@ -25,13 +25,10 @@ object SchemaModuleExamples {
 
         val adminSchema = caseClass(
           adminRecord,
-          Iso[List[String], Admin](Admin.apply)(_.rights)
+          NIso[List[String], Admin](Admin.apply, _.rights)
         )
 
-        adminSchema.imap(adminToListIso).imap(listToSeqIso).unFix match {
-          case IsoSchemaF(base, _) => assert(base == record(adminRecord))
-          case _                   => assert(false)
-        }
+        assert(adminSchema.schema == adminRecord.schema)
       }
     )
   }

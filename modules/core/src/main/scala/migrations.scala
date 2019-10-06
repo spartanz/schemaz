@@ -8,7 +8,7 @@ trait HasMigration[R <: Realisation] extends SchemaModule[R] {
     type A1
     type R1
 
-    def apply(in: SchemaZ[NIso, R0, A0, T], default: X): SchemaZ[NIso, R1, A1, T]
+    def apply(in: SchemaZ.Aux[R0, A0, T], default: X): SchemaZ.Aux[R1, A1, T]
   }
 
   object DoAddField extends LowPrioDoAddField {
@@ -19,9 +19,9 @@ trait HasMigration[R <: Realisation] extends SchemaModule[R] {
       type R1 = RR
 
       override def apply(
-        in: SchemaZ[NIso, RProd[N -*> RI, I, RR, AR], (I, AR), T],
+        in: SchemaZ.Aux[RProd[N -*> RI, I, RR, AR], (I, AR), T],
         default: I
-      ): SchemaZ[NIso, RR, AR, T] = in.schema.unFix match {
+      ): SchemaZ.Aux[RR, AR, T] = in.schema.unFix match {
         case ProdF(_, right) =>
           SchemaZ(
             NIso[AR, (I, AR)](x => (default, x), p => p._2).compose(in.p),
@@ -41,9 +41,9 @@ trait HasMigration[R <: Realisation] extends SchemaModule[R] {
       type R1 = RL
 
       def apply(
-        in: SchemaZ[NIso, RProd[RL, AL, N -*> RI, I], (AL, I), T],
+        in: SchemaZ.Aux[RProd[RL, AL, N -*> RI, I], (AL, I), T],
         default: I
-      ): SchemaZ[NIso, RL, AL, T] = in.schema.unFix match {
+      ): SchemaZ.Aux[RL, AL, T] = in.schema.unFix match {
         case ProdF(left, _) =>
           SchemaZ(
             NIso[AL, (AL, I)](x => (x, default), p => p._1).compose(in.p),
@@ -66,9 +66,9 @@ trait HasMigration[R <: Realisation] extends SchemaModule[R] {
       type R1 = RProd[RL, AL, below.R1, below.A1]
 
       def apply(
-        in: SchemaZ[NIso, RProd[RL, AL, RR, AR], (AL, AR), T],
+        in: SchemaZ.Aux[RProd[RL, AL, RR, AR], (AL, AR), T],
         default: X
-      ): SchemaZ[NIso, RProd[RL, AL, below.R1, below.A1], (AL, below.A1), T] =
+      ): SchemaZ.Aux[RProd[RL, AL, below.R1, below.A1], (AL, below.A1), T] =
         in.schema.unFix match {
           case ProdF(left, right) =>
             val r = below(SchemaZ(NIso.id[AR], Tag[RR].apply[Schema[AR]](right)), default)
@@ -88,9 +88,9 @@ trait HasMigration[R <: Realisation] extends SchemaModule[R] {
       type A1 = Unit
 
       def apply(
-        in: SchemaZ[NIso, N -*> RI, RI, RI],
+        in: SchemaZ.Aux[N -*> RI, RI, RI],
         default: RI
-      ): SchemaZ[NIso, Unit, Unit, RI] =
+      ): SchemaZ.Aux[Unit, Unit, RI] =
         SchemaZ(NIso[Unit, RI](_ => default, _ => ()).compose(in.p), unit.schema)
     }
 
@@ -99,12 +99,12 @@ trait HasMigration[R <: Realisation] extends SchemaModule[R] {
   }
 
   implicit class MigrationRecordOps[Rn: IsRecord, An, A](
-    rec: SchemaZ[NIso, RRecord[Rn, An], An, A]
+    rec: SchemaZ.Aux[RRecord[Rn, An], An, A]
   ) {
 
     def addField[N <: R.ProductTermId, X](name: N, default: X)(
       implicit transfo: DoAddField[N, Rn, An, An, X]
-    ): SchemaZ[NIso, RRecord[transfo.R1, An], transfo.A1, A] = rec.schema.unFix match {
+    ): SchemaZ.Aux[RRecord[transfo.R1, An], transfo.A1, A] = rec.schema.unFix match {
       case RecordF(fields) =>
         val f = transfo(SchemaZ(NIso.id[An], Tag[Rn].apply[Schema[An]](fields)), default)
         SchemaZ(f.p.compose(rec.p), record(f)(new IsRecord[transfo.R1] {}).schema)

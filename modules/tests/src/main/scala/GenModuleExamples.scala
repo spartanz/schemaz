@@ -29,7 +29,7 @@ object GenModuleExamples {
         val module = new TestModule with GenModule[JsonSchema.type] with PrimToGen {}
         import module._
 
-        val personGen: Gen[PersonTuple] = module.current.lookup[PersonTuple].to[Gen]
+        val personGen: Gen[Person] = module.current.lookup[Person].to[Gen]
 
         val prop = forAll {
           (seed1: Long, seed2: Long) =>

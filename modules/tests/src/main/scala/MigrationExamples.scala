@@ -55,7 +55,7 @@ object MigrationExamples {
 
     val personV0 = caseClass(
       "role" -*>: optional(current.lookup[Role]),
-      Iso[Option[Role], PersonV0](PersonV0.apply)(p => p.role)
+      NIso[Option[Role], PersonV0](PersonV0.apply, p => p.role)
     )
 
     section("Migrating schema")(
