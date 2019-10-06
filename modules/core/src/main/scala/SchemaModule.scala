@@ -1,4 +1,4 @@
-\package schemaz
+package schemaz
 import scala.annotation.implicitNotFound
 
 import recursion._
