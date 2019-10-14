@@ -7,6 +7,10 @@ import recursion._
 
 trait ShowModule[R <: Realisation] extends GenericSchemaModule[R] {
 
+  implicit object ShowTransform extends Transform[Show] {
+    def apply[A, B](fa: Show[A], p: NIso[A, B]): Show[B] = Show.showContravariant.contramap(fa)(p.g)
+  }
+
   implicit val showDecidableInstance: Decidable[Show] = new Decidable[Show] {
     override def choose2[Z, A1, A2](a1: => Show[A1], a2: => Show[A2])(f: Z => A1 \/ A2): Show[Z] =
       Show.shows[Z](z => f(z).fold(a1.shows, a2.shows))

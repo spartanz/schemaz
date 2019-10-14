@@ -72,6 +72,10 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
         (false, fSchema)
     }
 
+  implicit object ReadsTransform extends Transform[Reads] {
+    def apply[A, B](fa: Reads[A], p: NIso[A, B]): Reads[B] = fa.map(p.f)
+  }
+
   implicit final def readsInterpreter(
     implicit primNT: R.Prim ~> Reads,
     branchLabel: R.SumTermId <~< String,
@@ -127,6 +131,10 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
         }
       )
       .compose(labellingSeed)
+
+  implicit object WritesTransform extends Transform[Writes] {
+    def apply[A, B](fa: Writes[A], p: NIso[A, B]): Writes[B] = fa.contramap(p.g)
+  }
 
   implicit final def writesInterpreter(
     implicit primNT: R.Prim ~> Writes,

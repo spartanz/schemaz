@@ -12,28 +12,28 @@ trait Versioning[R <: Realisation] extends SchemaModule[R] {
 
     def schema[A, RA, T](leaf: SchemaZ.Aux[RA, A, T])(
       implicit add: Version.AddEntry[Types, Unit, A, RA, T]
-    ): Version[(SchemaZ.Aux[RA, A, T], Types), (Version.Entry.Aux[A, T, RA, Types], Re)] =
+    ): Version[(SchemaZ[T], Types), (Version.Entry.Aux[A, T, RA, Types], Re)] =
       new Version(
         (add(Version.Entry((_: Unit) => leaf)), registry)
       )
 
     def schema[A, RA, D, T](ctr: D => SchemaZ.Aux[RA, A, T])(
       implicit add: Version.AddEntry[Types, D, A, RA, T]
-    ): Version[(SchemaZ.Aux[RA, A, T], Types), (Version.Entry.Aux[A, T, RA, Types], Re)] =
+    ): Version[(SchemaZ[T], Types), (Version.Entry.Aux[A, T, RA, Types], Re)] =
       new Version(
         (add(Version.Entry(ctr)), registry)
       )
 
     def schema[A, RA, D1, D2, T](ctr: (D1, D2) => SchemaZ.Aux[RA, A, T])(
       implicit add: Version.AddEntry[Types, (D1, D2), A, RA, T]
-    ): Version[(SchemaZ.Aux[RA, A, T], Types), (Version.Entry.Aux[A, T, RA, Types], Re)] =
+    ): Version[(SchemaZ[T], Types), (Version.Entry.Aux[A, T, RA, Types], Re)] =
       new Version(
         (add(Version.Entry(ctr.tupled)), registry)
       )
 
     def schema[A, RA, D1, D2, D3, T](ctr: (D1, D2, D3) => SchemaZ.Aux[RA, A, T])(
       implicit add: Version.AddEntry[Types, (D1, D2, D3), A, RA, T]
-    ): Version[(SchemaZ.Aux[RA, A, T], Types), (Version.Entry.Aux[A, T, RA, Types], Re)] =
+    ): Version[(SchemaZ[T], Types), (Version.Entry.Aux[A, T, RA, Types], Re)] =
       new Version(
         (add(Version.Entry(ctr.tupled)), registry)
       )
@@ -42,7 +42,7 @@ trait Versioning[R <: Realisation] extends SchemaModule[R] {
       ctr: (D1, D2, D3, D4) => SchemaZ.Aux[RA, A, T]
     )(
       implicit add: Version.AddEntry[Types, (D1, D2, D3, D4), A, RA, T]
-    ): Version[(SchemaZ.Aux[RA, A, T], Types), (Version.Entry.Aux[A, T, RA, Types], Re)] =
+    ): Version[(SchemaZ[T], Types), (Version.Entry.Aux[A, T, RA, Types], Re)] =
       new Version(
         (add(Version.Entry(ctr.tupled)), registry)
       )
@@ -51,7 +51,7 @@ trait Versioning[R <: Realisation] extends SchemaModule[R] {
       ctr: (D1, D2, D3, D4, D5) => SchemaZ.Aux[RA, A, T]
     )(
       implicit add: Version.AddEntry[Types, (D1, D2, D3, D4, D5), A, RA, T]
-    ): Version[(SchemaZ.Aux[RA, A, T], Types), (Version.Entry.Aux[A, T, RA, Types], Re)] =
+    ): Version[(SchemaZ[T], Types), (Version.Entry.Aux[A, T, RA, Types], Re)] =
       new Version(
         (add(Version.Entry(ctr.tupled)), registry)
       )
@@ -76,6 +76,13 @@ trait Versioning[R <: Realisation] extends SchemaModule[R] {
     ): Version[Types, Re1] = {
       val migrated = lookup(registry).post(migration)
       new Version[Types, Re1](replace(registry, migrated))
+    }
+
+    def replace[RA1, A1, Re1](migration: SchemaZ.Aux[RA, A, T] => SchemaZ.Aux[RA1, A1, T])(
+      implicit replace: Version.Replace.Aux[Re, A, RA, A1, RA1, D, T, Re1]
+    ) = {
+      assert(migration != null)
+      replace
     }
   }
 
@@ -282,12 +289,12 @@ trait Versioning[R <: Realisation] extends SchemaModule[R] {
 
       implicit def buildVersion[A, T, Tpe, Reg, RA](
         implicit rest: Build[Tpe, Reg]
-      ): Build[(SchemaZ.Aux[RA, A, T], Tpe), (Version.Entry.Aux[A, T, RA, Tpe], Reg)] =
-        new Build[(SchemaZ.Aux[RA, A, T], Tpe), (Version.Entry.Aux[A, T, RA, Tpe], Reg)] {
+      ): Build[(SchemaZ[T], Tpe), (Version.Entry.Aux[A, T, RA, Tpe], Reg)] =
+        new Build[(SchemaZ[T], Tpe), (Version.Entry.Aux[A, T, RA, Tpe], Reg)] {
 
           def apply(
             ctrReg: (Version.Entry.Aux[A, T, RA, Tpe], Reg)
-          ): (SchemaZ.Aux[RA, A, T], Tpe) = {
+          ): (SchemaZ[T], Tpe) = {
             val tail = rest(ctrReg._2)
 
             (ctrReg._1.entry(tail), tail)

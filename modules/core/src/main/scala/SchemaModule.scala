@@ -183,6 +183,10 @@ final case class SelfReference[F[_], H[_], A, Prim[_], SumTermId, ProductTermId]
     SelfReference[F, G, A, Prim, SumTermId, ProductTermId](ref, nt.compose(nattrans))
 }
 
+trait Transform[F[_]] {
+  def apply[A, B](fa: F[A], niso: NIso[A, B]): F[B]
+}
+
 /**
  * An interpreter able to derive a `F[A]` from a schema for `A` (for any `A`).
  * Such interpreters will usually be implemented using a recursion scheme like
@@ -329,7 +333,8 @@ trait SchemaModule[R <: Realisation] {
         Tag[I -+> Repr].apply[Schema[A]](Fix(BranchF(id.asInstanceOf[R.SumTermId], schema)))
       )
 
-    def to[F[_]](implicit interpreter: RInterpreter[F]): F[T] = interpreter.interpret(schema).map(p.f)
+    def to[F[_]](implicit interpreter: RInterpreter[F], trans: Transform[F]): F[T] =
+      trans(interpreter.interpret(schema), p)
   }
 
   object SchemaZ {
@@ -424,15 +429,15 @@ trait SchemaModule[R <: Realisation] {
         .apply[Schema[aSchema.A \/ Unit]](Fix(SumF(aSchema.schema, unit.schema)))
     )
 
-  final def record[Repr: IsRecord, A0, A](
-    terms: SchemaZ.Aux[Repr, A0, A]
-  ): SchemaZ.Aux[RRecord[Repr, A], A0, A] =
-    SchemaZ(terms.p, Tag[RRecord[Repr, A]].apply[Schema[A0]](Fix(RecordF(terms.schema))))
+  final def record[Repr: IsRecord, A, T](
+    terms: SchemaZ.Aux[Repr, A, T]
+  ): SchemaZ.Aux[RRecord[Repr, A], A, T] =
+    SchemaZ(terms.p, Tag[RRecord[Repr, A]].apply[Schema[A]](Fix(RecordF(terms.schema))))
 
   final def caseClass[Repr: IsRecord, Fields, A, T](
     fields: SchemaZ.Aux[Repr, A, Fields],
     isoA: NIso[Fields, T]
-  ): SchemaZ.Aux[RRecord[Repr, Fields], A, T] =
+  ): SchemaZ.Aux[RRecord[Repr, A], A, T] =
     SchemaZ(fields.p.compose(isoA), record(fields).schema)
 
   final def seq[Repr, A, T](

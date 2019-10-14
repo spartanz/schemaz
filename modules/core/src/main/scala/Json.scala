@@ -13,6 +13,10 @@ object Json {
 trait JsonModule[R <: Realisation] extends SchemaModule[R] {
   import Json._
 
+  implicit object EncoderTransform extends Transform[Encoder] {
+    def apply[A, B](fa: Encoder[A], p: NIso[A, B]): Encoder[B] = fa.compose(p.g)
+  }
+
   implicit final def encoderInterpreter(
     implicit primNT: R.Prim ~> Encoder,
     fieldLabel: R.ProductTermId <~< String,

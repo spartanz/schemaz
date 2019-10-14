@@ -7,6 +7,10 @@ import scalaz.{ -\/, \/-, ~> }
 
 trait GenModule[R <: Realisation] extends SchemaModule[R] {
 
+  implicit object GenTransform extends Transform[Gen] {
+    def apply[A, B](fa: Gen[A], p: NIso[A, B]): Gen[B] = fa.map(p.f)
+  }
+
   implicit final def genInterpreter(
     implicit primNT: R.Prim ~> Gen
   ): RInterpreter[Gen] =
