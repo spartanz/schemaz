@@ -2,7 +2,6 @@ package schemaz
 
 package tests
 import scalaz.{ -\/, \/, \/- }
-import monocle.Iso
 
 import shapeless.syntax.singleton._
 
@@ -24,6 +23,19 @@ trait TestModule extends SchemaModule[JsonSchema.type] with Versioning[JsonSchem
 
   type PersonTuple = (Seq[Char], Option[Role])
 
+  val role = (u: SchemaZ[User], a: SchemaZ[Admin]) =>
+    sealedTrait(
+      "user".narrow -+>: u :+:
+        "admin".narrow -+>: a,
+      NIso[User \/ Admin, Role]({
+        case -\/(u) => u
+        case \/-(a) => a
+      }, {
+        case u @ User(_)  => -\/(u)
+        case a @ Admin(_) => \/-(a)
+      })
+    )
+
   val current = Current
     .schema(
       caseClass(
@@ -38,18 +50,7 @@ trait TestModule extends SchemaModule[JsonSchema.type] with Versioning[JsonSchem
       )
     )
     .schema(
-      (u: SchemaZ[User], a: SchemaZ[Admin]) =>
-        sealedTrait(
-          "user".narrow -+>: u :+:
-            "admin".narrow -+>: a,
-          NIso[User \/ Admin, Role]({
-            case -\/(u) => u
-            case \/-(a) => a
-          }, {
-            case u @ User(_)  => -\/(u)
-            case a @ Admin(_) => \/-(a)
-          })
-        )
+      role
     )
     .schema(
       (r: SchemaZ[Role]) =>

@@ -278,7 +278,7 @@ object SchemaF {
 
 trait Tagged[Repr]
 final class Tag[Repr] {
-  def apply[A](a: A): A with Tagged[Repr] = a.asInstanceOf
+  def apply[A](a: A): A with Tagged[Repr] = a.asInstanceOf[A with Tagged[Repr]]
 }
 
 object Tag {
@@ -335,6 +335,8 @@ trait SchemaModule[R <: Realisation] {
 
     def to[F[_]](implicit interpreter: RInterpreter[F], trans: Transform[F]): F[T] =
       trans(interpreter.interpret(schema), p)
+
+//    def imap[B](niso: NIso[T, B]): SchemaZ.Aux[Repr, ]
   }
 
   object SchemaZ {

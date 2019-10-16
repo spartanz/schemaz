@@ -14,28 +14,28 @@ trait Versioning[R <: Realisation] extends SchemaModule[R] {
       implicit add: Version.AddEntry[Types, Unit, A, RA, T]
     ): Version[(SchemaZ[T], Types), (Version.Entry.Aux[A, T, RA, Types], Re)] =
       new Version(
-        (add(Version.Entry((_: Unit) => leaf)), registry)
+        (add((_: Unit) => leaf), registry)
       )
 
     def schema[A, RA, D, T](ctr: D => SchemaZ.Aux[RA, A, T])(
       implicit add: Version.AddEntry[Types, D, A, RA, T]
     ): Version[(SchemaZ[T], Types), (Version.Entry.Aux[A, T, RA, Types], Re)] =
       new Version(
-        (add(Version.Entry(ctr)), registry)
+        (add(ctr), registry)
       )
 
     def schema[A, RA, D1, D2, T](ctr: (D1, D2) => SchemaZ.Aux[RA, A, T])(
       implicit add: Version.AddEntry[Types, (D1, D2), A, RA, T]
     ): Version[(SchemaZ[T], Types), (Version.Entry.Aux[A, T, RA, Types], Re)] =
       new Version(
-        (add(Version.Entry(ctr.tupled)), registry)
+        (add(ctr.tupled), registry)
       )
 
     def schema[A, RA, D1, D2, D3, T](ctr: (D1, D2, D3) => SchemaZ.Aux[RA, A, T])(
       implicit add: Version.AddEntry[Types, (D1, D2, D3), A, RA, T]
     ): Version[(SchemaZ[T], Types), (Version.Entry.Aux[A, T, RA, Types], Re)] =
       new Version(
-        (add(Version.Entry(ctr.tupled)), registry)
+        (add(ctr.tupled), registry)
       )
 
     def schema[A, RA, D1, D2, D3, D4, T](
@@ -44,7 +44,7 @@ trait Versioning[R <: Realisation] extends SchemaModule[R] {
       implicit add: Version.AddEntry[Types, (D1, D2, D3, D4), A, RA, T]
     ): Version[(SchemaZ[T], Types), (Version.Entry.Aux[A, T, RA, Types], Re)] =
       new Version(
-        (add(Version.Entry(ctr.tupled)), registry)
+        (add(ctr.tupled), registry)
       )
 
     def schema[A, RA, D1, D2, D3, D4, D5, T](
@@ -53,7 +53,7 @@ trait Versioning[R <: Realisation] extends SchemaModule[R] {
       implicit add: Version.AddEntry[Types, (D1, D2, D3, D4, D5), A, RA, T]
     ): Version[(SchemaZ[T], Types), (Version.Entry.Aux[A, T, RA, Types], Re)] =
       new Version(
-        (add(Version.Entry(ctr.tupled)), registry)
+        (add(ctr.tupled), registry)
       )
 
     def migrate[T](
@@ -61,7 +61,7 @@ trait Versioning[R <: Realisation] extends SchemaModule[R] {
     ): Migration[Types, Re, lookup.A, lookup.Repr, lookup.Deps, T] =
       new Migration[Types, Re, lookup.A, lookup.Repr, lookup.Deps, T](registry, lookup)
 
-    def lookup[T](implicit l: Version.Lookup[Types, T]): SchemaZ.Aux[l.Repr, l.A, T] = l(types)
+    def lookup[T](implicit l: Version.Lookup[Types, T]): SchemaZ[T] = l(types)
 
   }
 
@@ -89,8 +89,8 @@ trait Versioning[R <: Realisation] extends SchemaModule[R] {
   object Version {
 
     trait Entry[A, T] {
-      type Deps
       type Repr
+      type Deps
       val entry: Deps => SchemaZ.Aux[Repr, A, T]
       def pre[D0](f: D0 => Deps): Entry.Aux[A, T, Repr, D0]
 
@@ -100,7 +100,7 @@ trait Versioning[R <: Realisation] extends SchemaModule[R] {
     }
 
     object Entry {
-      type Aux[A, T, RA, D] = Entry[A, T] { type Deps = D; type Repr = RA }
+      type Aux[A, T, RA, D] = Entry[A, T] { type Repr = RA; type Deps = D }
 
       def apply[A, T, RA, D](ctr: D => SchemaZ.Aux[RA, A, T]): Aux[A, T, RA, D] =
         VersionEntry[A, T, RA, D](ctr)
@@ -122,9 +122,9 @@ trait Versioning[R <: Realisation] extends SchemaModule[R] {
       def prepare: Re => D
 
       def apply(
-        newEntry: Version.Entry.Aux[A, T, RA, D]
+        ctr: D => SchemaZ.Aux[RA, A, T]
       ): Version.Entry.Aux[A, T, RA, Re] =
-        newEntry.pre(prepare)
+        Version.Entry(ctr.compose(prepare))
     }
 
     object AddEntry {
@@ -303,37 +303,24 @@ trait Versioning[R <: Realisation] extends SchemaModule[R] {
     }
 
     trait Lookup[Re, T] {
-
-      type A
-      type Repr
-      def apply(registry: Re): SchemaZ.Aux[Repr, A, T]
+      def apply(registry: Re): SchemaZ[T]
     }
 
     trait LowPrioLookup {
       implicit def tailLookup[R1, RT, T](
         implicit rest: Lookup[RT, T]
-      ): Lookup.Aux[(R1, RT), T, rest.Repr, rest.A] =
+      ): Lookup[(R1, RT), T] =
         new Lookup[(R1, RT), T] {
-
-          type A    = rest.A
-          type Repr = rest.Repr
-          def apply(registry: (R1, RT)): SchemaZ.Aux[rest.Repr, rest.A, T] = rest(registry._2)
+          def apply(registry: (R1, RT)): SchemaZ[T] = rest(registry._2)
         }
     }
 
     object Lookup extends LowPrioLookup {
 
-      type Aux[Re, T, R0, A0] = Lookup[Re, T] {
-        type A = A0; type Repr = R0
-      }
+      implicit def headLookup[RR, T]: Lookup[(SchemaZ[T], RR), T] =
+        new Lookup[(SchemaZ[T], RR), T] {
 
-      implicit def headLookup[RR, R0, A0, T]: Lookup.Aux[(SchemaZ.Aux[R0, A0, T], RR), T, R0, A0] =
-        new Lookup[(SchemaZ.Aux[R0, A0, T], RR), T] {
-
-          type A    = A0
-          type Repr = R0
-
-          def apply(registry: (SchemaZ.Aux[R0, A0, T], RR)): SchemaZ.Aux[R0, A0, T] =
+          def apply(registry: (SchemaZ[T], RR)): SchemaZ[T] =
             registry._1
         }
     }

@@ -2,7 +2,6 @@ package schemaz
 
 package tests
 
-import monocle.Iso
 import testz._
 
 object SchemaModuleExamples {
@@ -18,8 +17,8 @@ object SchemaModuleExamples {
 
     section("Manipulating Schemas")(
       test("imap on IsoSchema shouldn't add new layer") { () =>
-        val adminToListIso  = Iso[Admin, List[String]](_.rights)(Admin.apply)
-        def listToSeqIso[A] = Iso[List[A], Seq[A]](_.toSeq)(_.toList)
+        //val adminToListIso  = NIso[Admin, List[String]](_.rights, Admin.apply)
+        //def listToSeqIso[A] = NIso[List[A], Seq[A]](_.toSeq, _.toList)
 
         val adminRecord = "rights" -*>: seq(prim(JsonSchema.JsonString))
 
@@ -28,7 +27,7 @@ object SchemaModuleExamples {
           NIso[List[String], Admin](Admin.apply, _.rights)
         )
 
-        assert(adminSchema.schema == adminRecord.schema)
+        assert(adminSchema.schema == record(adminRecord).schema)
       }
     )
   }

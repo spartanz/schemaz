@@ -3,7 +3,6 @@ package schemaz
 package tests
 
 import scalaz.~>
-import monocle.Iso
 import testz._
 import scalacheck.GenModule
 import org.scalacheck._, Prop._, Arbitrary._
