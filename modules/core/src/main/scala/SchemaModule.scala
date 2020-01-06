@@ -13,7 +13,6 @@ trait Realisation {
 object Representation {
   type RSum[RA, A, RB, B]
   type RProd[RA, A, RB, B]
-  //type RIso[RA, A, B]
   type RSelf[A]
   type RSeq[R, A]
   type -*>[K, V]
@@ -336,7 +335,6 @@ trait SchemaModule[R <: Realisation] {
     def to[F[_]](implicit interpreter: RInterpreter[F], trans: Transform[F]): F[T] =
       trans(interpreter.interpret(schema), p)
 
-//    def imap[B](niso: NIso[T, B]): SchemaZ.Aux[Repr, ]
   }
 
   object SchemaZ {
