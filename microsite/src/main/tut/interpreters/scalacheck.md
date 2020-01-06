@@ -45,7 +45,7 @@ import ExampleModule._
 val foo = caseClass(
     "name"      -*>: prim(JsonSchema.JsonString) :*:
     "connected" -*>: prim(JsonSchema.JsonBool),
-    Iso[(String, Boolean), Foo]((Foo.apply _).tupled)(f => (f.name, f.connected))
+    NIso[(String, Boolean), Foo]((Foo.apply _).tupled, f => (f.name, f.connected))
   )
   
 ```
