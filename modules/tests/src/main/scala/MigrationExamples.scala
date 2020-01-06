@@ -53,7 +53,7 @@ object MigrationExamples {
     val person = version0.lookup[Person]
 
     val personV0 = caseClass(
-      "role" -*>: optional(current.lookup[Role]),
+      "role" -*> optional(current.lookup[Role]),
       NIso[Option[Role], PersonV0](PersonV0.apply, p => p.role)
     )
 

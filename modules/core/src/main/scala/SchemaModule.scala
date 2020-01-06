@@ -318,20 +318,6 @@ trait SchemaModule[R <: Realisation] {
         Tag[RSum[R2, B, Repr, A]].apply[Schema[B \/ A]](Fix(new SumF(left.schema, schema)))
       )
 
-    def -*>: [I <: R.ProductTermId](
-      id: I
-    ): SchemaZ.Aux[I -*> Repr, A, T] =
-      SchemaZ(
-        p,
-        Tag[I -*> Repr].apply[Schema[A]](Fix(FieldF(id.asInstanceOf[R.ProductTermId], schema)))
-      )
-
-    def -+>: [I <: R.SumTermId](id: I): SchemaZ.Aux[I -+> Repr, A, T] =
-      SchemaZ(
-        p,
-        Tag[I -+> Repr].apply[Schema[A]](Fix(BranchF(id.asInstanceOf[R.SumTermId], schema)))
-      )
-
     def to[F[_]](implicit interpreter: RInterpreter[F], trans: Transform[F]): F[T] =
       trans(interpreter.interpret(schema), p)
 
@@ -355,6 +341,26 @@ trait SchemaModule[R <: Realisation] {
     type Repr = R0
     type A    = A0
 
+  }
+
+  implicit class ProductTermIdOps[I <: R.ProductTermId](id: I) {
+
+    def -*> [T](schema: SchemaZ[T]): SchemaZ.Aux[I -*> schema.Repr, schema.A, T] =
+      SchemaZ(
+        schema.p,
+        Tag[I -*> schema.Repr]
+          .apply[Schema[schema.A]](Fix(FieldF(id.asInstanceOf[R.ProductTermId], schema.schema)))
+      )
+  }
+
+  implicit class SumTermIdOps[I <: R.SumTermId](id: I) {
+
+    def -+> [T](schema: SchemaZ[T]): SchemaZ.Aux[I -+> schema.Repr, schema.A, T] =
+      SchemaZ(
+        schema.p,
+        Tag[I -+> schema.Repr]
+          .apply[Schema[schema.A]](Fix(BranchF(id.asInstanceOf[R.SumTermId], schema.schema)))
+      )
   }
 
   type ROne[F[_]]        = One[F, R.Prim, R.SumTermId, R.ProductTermId]

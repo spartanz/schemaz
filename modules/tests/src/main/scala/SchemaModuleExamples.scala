@@ -20,7 +20,7 @@ object SchemaModuleExamples {
         //val adminToListIso  = NIso[Admin, List[String]](_.rights, Admin.apply)
         //def listToSeqIso[A] = NIso[List[A], Seq[A]](_.toSeq, _.toList)
 
-        val adminRecord = "rights" -*>: seq(prim(JsonSchema.JsonString))
+        val adminRecord = "rights" -*> seq(prim(JsonSchema.JsonString))
 
         val adminSchema = caseClass(
           adminRecord,

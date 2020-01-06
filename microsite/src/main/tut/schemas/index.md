@@ -127,7 +127,7 @@ case object Bye                               extends Message
 
 To build a schema for the whole `Message` ADT, we would of course need to build the schema for all its sub-types. So let's start by building the schema for `Greeting`. 
 
-`Greeting` is a case class, so we represent it as a *record*: a (nested) product of labelled *fields*, which are just schemas with a `ProductTermId` attached to them (in our current module, `ProductTermId` is `String`). The `-*>:` combinator is there for attaching such label to a schema.
+`Greeting` is a case class, so we represent it as a *record*: a (nested) product of labelled *fields*, which are just schemas with a `ProductTermId` attached to them (in our current module, `ProductTermId` is `String`). The `-*>` combinator is there for attaching such label to a schema.
 
 To build a record from a product of labelled fields, we also need to provide an isomorphism between the product representation and the concrete case class our record is meant to represent. In the case of `Greeting`, we need an `Iso[(String, String), Greeting]`.
 
@@ -135,8 +135,8 @@ To build a record from a product of labelled fields, we also need to provide an 
 val tupleToGreeting = NIso[(String, String), Greeting]((Greeting.apply _).tupled, g => (g.from, g.to))
 
 val greeting = caseClass(
-  "from" -*>: prim(JsonString) :*:
-  "to"   -*>: prim(JsonString),
+  "from" -*> prim(JsonString) :*:
+  "to"   -*> prim(JsonString),
   tupleToGreeting
 )
 ```
@@ -147,7 +147,7 @@ The schema for `Bye` is much simpler. `Bye` is a case object that is, a singleto
 val bye = iso(unit, NIso[Unit, Bye.type](_ => Bye, _ => ()))
 ```
 
-And finally, we can define the schema for `Message` as the union (sum of labelled branches) of `greeting` and `bye`. We use `-+>:` to label the branches of an union. As with records, we need to provide an isomorphism between the sum representation (`Greeting \/ Byt.type`) and the `Message` trait:
+And finally, we can define the schema for `Message` as the union (sum of labelled branches) of `greeting` and `bye`. We use `-+>` to label the branches of an union. As with records, we need to provide an isomorphism between the sum representation (`Greeting \/ Byt.type`) and the `Message` trait:
 
 ```tut
 val sumToMessage = NIso[Greeting \/ Bye.type, Message]({
@@ -159,8 +159,8 @@ val sumToMessage = NIso[Greeting \/ Bye.type, Message]({
 })
 
 val message = sealedTrait(
-  "Greeting" -+>: greeting :+:
-  "Bye"      -+>: bye,
+  "Greeting" -+> greeting :+:
+  "Bye"      -+> bye,
   sumToMessage
 )
 ```
