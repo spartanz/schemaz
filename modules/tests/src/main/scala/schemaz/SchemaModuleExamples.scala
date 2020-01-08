@@ -1,7 +1,5 @@
 package schemaz
 
-package tests
-
 import testz._
 
 object SchemaModuleExamples {
@@ -9,7 +7,7 @@ object SchemaModuleExamples {
   def tests[T](harness: Harness[T]): T = {
     import harness._
 
-    val jsonModule = new JsonModule[JsonSchema.type] {
+    val jsonModule = new examples.JsonModule[JsonSchema.type] {
       override val R = JsonSchema
     }
 

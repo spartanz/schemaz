@@ -1,6 +1,5 @@
 package schemaz
 
-package tests
 import scalaz.{ -\/, \/, \/- }
 
 import shapeless.syntax.singleton._

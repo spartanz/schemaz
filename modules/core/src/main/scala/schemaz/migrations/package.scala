@@ -1,6 +1,7 @@
-package schemaz
+package schemaz.migrations
 
-import Representation._
+import schemaz._
+import schemaz.Representation._
 
 trait HasMigration[R <: Realisation] extends SchemaModule[R] {
 

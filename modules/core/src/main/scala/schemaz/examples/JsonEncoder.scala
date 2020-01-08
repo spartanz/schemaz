@@ -1,4 +1,6 @@
-package schemaz
+package schemaz.examples
+
+import schemaz._
 
 import scalaz.~>
 import scalaz.Liskov.<~<

@@ -1,6 +1,5 @@
-package schemaz
-
-package scalacheck
+package schemaz.scalacheck
+import schemaz._
 
 import org.scalacheck._
 import scalaz.{ -\/, \/-, ~> }

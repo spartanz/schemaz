@@ -1,10 +1,9 @@
-package schemaz
+package schemaz.migrations
 
-package tests
+import schemaz._
 
 import scalaz.~>
 import testz._
-import scalacheck.GenModule
 import org.scalacheck._, Prop._, Arbitrary._
 import _root_.play.api.libs.json._
 import shapeless.syntax.singleton._
@@ -16,9 +15,9 @@ object MigrationExamples {
   def tests[T](harness: Harness[T]): T = {
     import harness._
 
-    val jsonModule = new TestModule with JsonModule[JsonSchema.type] with GenModule[JsonSchema.type]
-    with play.json.PlayJsonModule[JsonSchema.type] with HasMigration[JsonSchema.type]
-    with PrimToGen {
+    val jsonModule = new TestModule with HasMigration[JsonSchema.type]
+    with examples.JsonModule[JsonSchema.type] with playjson.PlayJsonModule[JsonSchema.type]
+    with scalacheck.GenModule[JsonSchema.type] with scalacheck.PrimToGen {
       override val R = JsonSchema
 
       implicit val jsonPrimWrites = new (JsonSchema.Prim ~> Writes) {

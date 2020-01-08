@@ -1,6 +1,6 @@
-package schemaz
+package schemaz.playjson
 
-package tests
+import schemaz._
 import scalaz.~>
 import testz._
 import _root_.play.api.libs.json._
@@ -8,7 +8,7 @@ import org.scalacheck._, Prop._, Arbitrary._
 
 object PlayJsonExamples {
 
-  val module = new TestModule with play.json.PlayJsonModule[JsonSchema.type]
+  val module = new TestModule with PlayJsonModule[JsonSchema.type]
   with scalacheck.GenModule[JsonSchema.type] {
 
     implicit val primToGenNT = new (JsonSchema.Prim ~> Gen) {

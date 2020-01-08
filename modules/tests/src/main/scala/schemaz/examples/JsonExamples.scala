@@ -1,6 +1,7 @@
-package schemaz
+package schemaz.examples
 
-package tests
+import schemaz._
+
 import scalaz.~>
 import testz._
 

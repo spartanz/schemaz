@@ -1,13 +1,11 @@
-package schemaz
+package schemaz.playjson
 
-package play.json
-
-import recursion._
+import schemaz._, recursion._
 import scalaz.{ -\/, Applicative, \/-, ~> }
 import scalaz.Scalaz._
 import scalaz.Liskov.<~<
-import _root_.play.api.libs.json._
-import _root_.play.api.libs.functional.syntax._
+import play.api.libs.json._
+import play.api.libs.functional.syntax._
 
 trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
 
