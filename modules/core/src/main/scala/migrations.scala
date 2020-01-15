@@ -2,101 +2,124 @@ package schemaz
 
 import Representation._
 
-import monocle.Iso
-
 trait HasMigration[R <: Realisation] extends SchemaModule[R] {
 
-  trait DoAddField[N <: R.ProductTermId, RIn, I, X] {
-    type ROut
+  sealed trait DoAddField[N <: R.ProductTermId, R0, A0, T, X] {
+    type A1
+    type R1
 
-    def apply(in: SchemaZ[RIn, I], default: X): SchemaZ[ROut, I]
+    def apply(in: SchemaZ.Aux[R0, A0, T], default: X): SchemaZ.Aux[R1, A1, T]
   }
 
   object DoAddField extends LowPrioDoAddField {
 
-    implicit def doAddFieldHere[N <: R.ProductTermId, RI, I, RR, AR] =
-      new DoAddField[N, RProd[N -*> RI, I, RR, AR], (I, AR), I] {
-        type ROut = RIso[RR, AR, (I, AR)]
+    type Aux[N <: R.ProductTermId, R0, A0, T, X, R1_, A1_] = DoAddField[N, R0, A0, T, X] {
+      type R1 = R1_; type A1 = A1_
+    }
 
-        def apply(
-          in: SchemaZ[RProd[N -*> RI, I, RR, AR], (I, AR)],
-          default: I
-        ): SchemaZ[RIso[RR, AR, (I, AR)], (I, AR)] = in.unFix match {
-          case ProdF(_, right) =>
-            iso(SchemaZ(right), Iso[AR, (I, AR)](x => (default, x))(p => p._2))
-          case _ => ???
-        }
+    final class DoAddFieldLeft[N <: R.ProductTermId, RI, I, RR, AR, T]
+        extends DoAddField[N, RProd[N -*> RI, I, RR, AR], (I, AR), T, I] {
+      type A1 = AR
+      type R1 = RR
+
+      override def apply(
+        in: SchemaZ.Aux[RProd[N -*> RI, I, RR, AR], (I, AR), T],
+        default: I
+      ): SchemaZ.Aux[RR, AR, T] = in.schema.unFix match {
+        case ProdF(_, right) =>
+          SchemaZ(
+            NIso[AR, (I, AR)](x => (default, x), p => p._2).compose(in.p),
+            Tag[RR].apply[Schema[AR]](right)
+          )
+        case _ => ???
       }
+    }
 
-    implicit def doAddFieldHereR[N <: R.ProductTermId, RI, I, RL, AL] =
-      new DoAddField[N, RProd[RL, AL, N -*> RI, I], (AL, I), I] {
-        type ROut = RIso[RL, AL, (AL, I)]
+    implicit def doAddFieldHere[N <: R.ProductTermId, RI, I, RR, AR, T]
+      : DoAddField.Aux[N, RProd[N -*> RI, I, RR, AR], (I, AR), T, I, RR, AR] =
+      new DoAddFieldLeft[N, RI, I, RR, AR, T]
 
-        def apply(
-          in: SchemaZ[RProd[RL, AL, N -*> RI, I], (AL, I)],
-          default: I
-        ): SchemaZ[RIso[RL, AL, (AL, I)], (AL, I)] = in.unFix match {
-          case ProdF(left, _) =>
-            iso(SchemaZ(left), Iso[AL, (AL, I)](x => (x, default))(p => p._1))
-          case _ => ???
-        }
+    final class DoAddFieldRight[N <: R.ProductTermId, RI, I, RL, AL, T]
+        extends DoAddField[N, RProd[RL, AL, N -*> RI, I], (AL, I), T, I] {
+      type A1 = AL
+      type R1 = RL
+
+      def apply(
+        in: SchemaZ.Aux[RProd[RL, AL, N -*> RI, I], (AL, I), T],
+        default: I
+      ): SchemaZ.Aux[RL, AL, T] = in.schema.unFix match {
+        case ProdF(left, _) =>
+          SchemaZ(
+            NIso[AL, (AL, I)](x => (x, default), p => p._1).compose(in.p),
+            Tag[RL].apply[Schema[AL]](left)
+          )
+        case _ => ???
       }
+    }
+
+    implicit def doAddFieldHereR[N <: R.ProductTermId, RI, I, RL, AL, T]
+      : DoAddField.Aux[N, RProd[RL, AL, N -*> RI, I], (AL, I), T, I, RL, AL] =
+      new DoAddFieldRight[N, RI, I, RL, AL, T]
   }
 
   trait LowPrioDoAddField {
-    implicit def doAddFieldBelow[N <: R.ProductTermId, RR, AR, RI, AI, X](
-      implicit below: DoAddField[N, RI, AI, X]
-    ) = new DoAddField[N, RProd[RR, AR, RI, AI], (AR, AI), X] {
-      type ROut = RProd[RR, AR, below.ROut, AI]
+    final class DoAddFieldBelow[N <: R.ProductTermId, RR, AR, RL, AL, T, X, R1b, A1b](
+      implicit val below: DoAddField.Aux[N, RR, AR, AR, X, R1b, A1b]
+    ) extends DoAddField[N, RProd[RL, AL, RR, AR], (AL, AR), T, X] {
+      type A1 = (AL, A1b)
+      type R1 = RProd[RL, AL, R1b, A1b]
 
       def apply(
-        in: SchemaZ[RProd[RR, AR, RI, AI], (AR, AI)],
+        in: SchemaZ.Aux[RProd[RL, AL, RR, AR], (AL, AR), T],
         default: X
-      ): SchemaZ[RProd[RR, AR, below.ROut, AI], (AR, AI)] = in.unFix match {
-        case ProdF(left, right) => SchemaZ[RR, AR](left) :*: below(SchemaZ(right), default)
-        case _                  => ???
-      }
-    }
-
-    implicit def doAddFieldBelowI[N <: R.ProductTermId, RI, AI, I, X](
-      implicit below: DoAddField[N, RI, AI, X]
-    ) = new DoAddField[N, RIso[RI, AI, I], I, X] {
-      type ROut = RIso[below.ROut, AI, I]
-
-      def apply(in: SchemaZ[RIso[RI, AI, I], I], default: X): SchemaZ[RIso[below.ROut, AI, I], I] =
-        in.unFix match {
-          case IsoSchemaF(base, isoA) =>
-            iso(below(base.asInstanceOf[SchemaZ[RI, AI]], default), isoA.asInstanceOf[Iso[AI, I]])
+      ): SchemaZ.Aux[RProd[RL, AL, R1b, A1b], (AL, A1b), T] =
+        in.schema.unFix match {
+          case ProdF(left, right) =>
+            val r = below(SchemaZ(NIso.id[AR], Tag[RR].apply[Schema[AR]](right)), default)
+            iso(SchemaZ(NIso.id[AL], Tag[RL].apply[Schema[AL]](left)) :*: r, in.p)
           case _ => ???
         }
     }
 
-    implicit def doAddFieldLast[N <: R.ProductTermId, RI] =
-      new DoAddField[N, N -*> RI, RI, RI] {
-        type ROut = RIso[Unit, Unit, RI]
+    implicit def doAddFieldBelow[N <: R.ProductTermId, RR, AR, RL, AL, T, X, R1b, A1b](
+      implicit below: DoAddField.Aux[N, RR, AR, AR, X, R1b, A1b]
+    ): DoAddField.Aux[N, RProd[RL, AL, RR, AR], (AL, AR), T, X, RProd[RL, AL, R1b, A1b], (AL, A1b)] =
+      new DoAddFieldBelow[N, RR, AR, RL, AL, T, X, R1b, A1b]
 
-        def apply(
-          in: SchemaZ[N -*> RI, RI],
-          default: RI
-        ): SchemaZ[RIso[Unit, Unit, RI], RI] = iso(unit, Iso[Unit, RI](_ => default)(_ => ()))
-      }
+    final class DoAddFieldLast[N <: R.ProductTermId, RI]
+        extends DoAddField[N, N -*> RI, RI, RI, RI] {
+      type R1 = Unit
+      type A1 = Unit
+
+      def apply(
+        in: SchemaZ.Aux[N -*> RI, RI, RI],
+        default: RI
+      ): SchemaZ.Aux[Unit, Unit, RI] =
+        SchemaZ(NIso[Unit, RI](_ => default, _ => ()).compose(in.p), unit.schema)
+    }
+
+    implicit def doAddFieldLast[N <: R.ProductTermId, RI]: DoAddField[N, N -*> RI, RI, RI, RI] =
+      new DoAddFieldLast[N, RI]
   }
 
-  implicit class MigrationRecordOps[Rn: IsRecord, An, A](
-    rec: SchemaZ[RIso[RRecord[Rn, An], An, A], A]
+  implicit class MigrationRecordOps[R0: IsRecord, A0, T](
+    rec: SchemaZ.Aux[RRecord[R0, A0], A0, T]
   ) {
 
-    def addField[N <: R.ProductTermId, X](name: N, default: X)(
-      implicit transfo: DoAddField[N, Rn, An, X]
-    ): SchemaZ[RIso[RRecord[transfo.ROut, An], An, A], A] = rec.unFix match {
-      case IsoSchemaF(recursion.Fix(RecordF(fields)), isoA) =>
-        caseClass[transfo.ROut, An, A](
-          transfo(fields.asInstanceOf[SchemaZ[Rn, An]], default),
-          isoA.asInstanceOf[Iso[An, A]]
-        )(
-          new IsRecord[transfo.ROut] {}
-        )
-      case _ => identity(name); ???
-    }
+    def addField[N <: R.ProductTermId, X, R1, A1](name: N, default: X)(
+      implicit transfo: DoAddField.Aux[N, R0, A0, T, X, R1, A1]
+    ): SchemaZ.Aux[RRecord[R1, A1], A1, T] =
+      rec.schema.unFix match {
+        case RecordF(fields) =>
+          val f =
+            transfo(
+              SchemaZ(rec.p, Tag[R0].apply[Schema[A0]](fields)),
+              default
+            )
+          SchemaZ(f.p, record(f)(new IsRecord[transfo.R1] {}).schema)
+        case _ => identity(name); ???
+      }
+
   }
+
 }

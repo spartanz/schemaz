@@ -22,6 +22,10 @@ trait GenericGenModule[R <: Realisation] extends GenericSchemaModule[R] {
 
   }
 
+  implicit object GenTransform extends Transform[Gen] {
+    def apply[A, B](fa: Gen[A], p: NIso[A, B]): Gen[B] = fa.map(p.f)
+  }
+
   implicit final def genericGenInterpreter(
     implicit primNT: R.Prim ~> Gen
   ): RInterpreter[Gen] = Interpreter.cata(

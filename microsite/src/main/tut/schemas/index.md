@@ -99,15 +99,14 @@ val u8 = bit :*: bit :*: bit :*: bit :*: bit :*: bit :*: bit :*: bit
 What if we wanted to use the representation described by the `bit` schema to represent `Boolean` values? Using `iso`, we can account for the fact that `Boolean` and `Unit \/ Unit` are isomorphic and express `boolean` in terms of `bit`:
 
 ```tut
-import monocle.Iso
 
-val bitToBoolean = Iso[Unit \/ Unit, Boolean]{
+val bitToBoolean = NIso[Unit \/ Unit, Boolean]({
   case -\/(()) => true
   case \/-(()) => false
-}{
+}, {
   case true => -\/(())
   case false => \/-(())
-}
+})
 
 val boolean = iso(bit, bitToBoolean)
 ```
@@ -133,7 +132,7 @@ To build a schema for the whole `Message` ADT, we would of course need to build 
 To build a record from a product of labelled fields, we also need to provide an isomorphism between the product representation and the concrete case class our record is meant to represent. In the case of `Greeting`, we need an `Iso[(String, String), Greeting]`.
 
 ```tut
-val tupleToGreeting = Iso[(String, String), Greeting]((Greeting.apply _).tupled)(g => (g.from, g.to))
+val tupleToGreeting = NIso[(String, String), Greeting]((Greeting.apply _).tupled, g => (g.from, g.to))
 
 val greeting = caseClass(
   "from" -*>: prim(JsonString) :*:
@@ -145,19 +144,19 @@ val greeting = caseClass(
 The schema for `Bye` is much simpler. `Bye` is a case object that is, a singleton type, a type with only one inhabitant. We already have a schema for a type with only one inhabitant, it's `unit`. So we just have to prove that `Bye` and `Unit` are isomorphic:
 
 ```tut
-val bye = iso(unit, Iso[Unit, Bye.type](_ => Bye)(_ => ()))
+val bye = iso(unit, NIso[Unit, Bye.type](_ => Bye, _ => ()))
 ```
 
 And finally, we can define the schema for `Message` as the union (sum of labelled branches) of `greeting` and `bye`. We use `-+>:` to label the branches of an union. As with records, we need to provide an isomorphism between the sum representation (`Greeting \/ Byt.type`) and the `Message` trait:
 
 ```tut
-val sumToMessage = Iso[Greeting \/ Bye.type, Message]{
+val sumToMessage = NIso[Greeting \/ Bye.type, Message]({
   case -\/(g) => g
   case \/-(b) => b
-}{
+},{
   case g @ Greeting(_, _) => -\/(g)
   case Bye                => \/-(Bye)
-}
+})
 
 val message = sealedTrait(
   "Greeting" -+>: greeting :+:
@@ -168,48 +167,10 @@ val message = sealedTrait(
 
 And *voilà*! We have built a schema for our `Message` ADT.
 
-The library also provides combinator to represent lists (`seq`)  and options (`optional`):
+The library also provides combinators to represent lists (`seq`)  and options (`optional`):
 
 ```tut
 val messageList = seq(message)
 
 val maybeMessage = optional(message)
 ```
-
-### Recursive schemas
-
-It is possible to define schemas for recursive types (eg. types that refer to themselves) like the following 
-
-```tut:silent
-sealed trait Tree
-final case class Node(l: Tree, r: Tree) extends Tree
-final case class Leaf(label: String)    extends Tree
-```
-
-The `Tree` type is recursive because `Node` (which is a `Tree`) is defined in terms of `Tree`.
-
-The library provides a `self` combinator that allows for such self-referential definitions.
-
-```tut
-val pairToNode = Iso[(Tree, Tree), Node]((Node.apply _).tupled)(n => (n.l, n.r))
-
-val stringToLeaf = Iso[String, Leaf](Leaf.apply _)(l => l.label)
-
-val eitherToTree = Iso[Node \/ Leaf, Tree]({
-  case -\/(n) => n
-  case \/-(l) => l
-})({
-  case n: Node => -\/(n)
-  case l: Leaf => \/-(l)
-})
-
-lazy val tree: Schema[Tree] = sealedTrait(
-  "Node" -+>: caseClass("l" -*>: self(tree) :*: "r" -*>: self(tree), pairToNode) :+: 
-  "Leaf" -+>: caseClass("label" -*>: prim(JsonString), stringToLeaf), 
-  eitherToTree
-)
-```
-
-Note that because it refers to itself, `tree` must be defined as a `lazy val` (a `def` would work too) and its type must be specified.
-
-

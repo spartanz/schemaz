@@ -72,6 +72,10 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
         (false, fSchema)
     }
 
+  implicit object ReadsTransform extends Transform[Reads] {
+    def apply[A, B](fa: Reads[A], p: NIso[A, B]): Reads[B] = fa.map(p.f)
+  }
+
   implicit final def readsInterpreter(
     implicit primNT: R.Prim ~> Reads,
     branchLabel: R.SumTermId <~< String,
@@ -122,13 +126,15 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
                   elems.toList.traverse(elem.reads _)
                 case _ => JsError(Seq(JsPath -> Seq(JsonValidationError("error.expected.jsarray"))))
               }
-            case i: IsoSchema[Reads, a0, A] =>
-              i.base.map(i.iso.get)
             case ref @ SelfReference(_, _) => Reads(ref.unroll.reads)
           }
         }
       )
       .compose(labellingSeed)
+
+  implicit object WritesTransform extends Transform[Writes] {
+    def apply[A, B](fa: Writes[A], p: NIso[A, B]): Writes[B] = fa.contramap(p.g)
+  }
 
   implicit final def writesInterpreter(
     implicit primNT: R.Prim ~> Writes,
@@ -157,14 +163,13 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
                 Writes(
                   pair => Json.obj("_1" -> left.writes(pair._1), "_2" -> right.writes(pair._2))
                 )
-            case PrimSchemaF(p)             => primNT(p)
-            case BranchF(id, s)             => Writes(a => Json.obj(branchLabel(id) -> s.writes(a)))
-            case u: Union[Writes, a]        => u.choices
-            case FieldF(id, s)              => Writes(a => Json.obj(fieldLabel(id) -> s.writes(a)))
-            case r: Record[Writes, a]       => r.fields
-            case SeqF(elem)                 => Writes(seq => JsArray(seq.map(elem.writes(_))))
-            case i: IsoSchema[Writes, a, A] => i.base.contramap(i.iso.reverseGet)
-            case ref @ SelfReference(_, _)  => Writes(ref.unroll.writes)
+            case PrimSchemaF(p)            => primNT(p)
+            case BranchF(id, s)            => Writes(a => Json.obj(branchLabel(id) -> s.writes(a)))
+            case u: Union[Writes, a]       => u.choices
+            case FieldF(id, s)             => Writes(a => Json.obj(fieldLabel(id) -> s.writes(a)))
+            case r: Record[Writes, a]      => r.fields
+            case SeqF(elem)                => Writes(seq => JsArray(seq.map(elem.writes(_))))
+            case ref @ SelfReference(_, _) => Writes(ref.unroll.writes)
           }
 
         }

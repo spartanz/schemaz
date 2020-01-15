@@ -7,6 +7,10 @@ import scalaz.{ -\/, \/-, ~> }
 
 trait GenModule[R <: Realisation] extends SchemaModule[R] {
 
+  implicit object GenTransform extends Transform[Gen] {
+    def apply[A, B](fa: Gen[A], p: NIso[A, B]): Gen[B] = fa.map(p.f)
+  }
+
   implicit final def genInterpreter(
     implicit primNT: R.Prim ~> Gen
   ): RInterpreter[Gen] =
@@ -21,7 +25,6 @@ trait GenModule[R <: Realisation] extends SchemaModule[R] {
               r <- right
             } yield (l, r)
           case SumF(left, right)         => Gen.oneOf(left.map(-\/(_)), right.map(\/-(_)))
-          case IsoSchemaF(base, iso)     => base.map(iso.get)
           case RecordF(fields)           => fields
           case SeqF(element)             => Gen.listOf(element)
           case FieldF(_, base)           => base

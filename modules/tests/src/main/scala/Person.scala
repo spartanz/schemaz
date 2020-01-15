@@ -2,7 +2,6 @@ package schemaz
 
 package tests
 import scalaz.{ -\/, \/, \/- }
-import monocle.Iso
 
 import shapeless.syntax.singleton._
 
@@ -16,7 +15,7 @@ object Person {
   private def f(p: Person): (Seq[Char], Option[Role]) = (p.name.toSeq, p.role)
   private def g(t: (Seq[Char], Option[Role])): Person = Person(t._1.mkString, t._2)
 
-  val personToTupleIso = Iso[Person, (Seq[Char], Option[Role])](f)(g)
+  val personToTupleIso = NIso[Person, (Seq[Char], Option[Role])](f, g)
 }
 
 trait TestModule extends SchemaModule[JsonSchema.type] with Versioning[JsonSchema.type] {
@@ -24,51 +23,53 @@ trait TestModule extends SchemaModule[JsonSchema.type] with Versioning[JsonSchem
 
   type PersonTuple = (Seq[Char], Option[Role])
 
+  val role = (u: SchemaZ[User], a: SchemaZ[Admin]) =>
+    sealedTrait(
+      "user".narrow -+>: u :+:
+        "admin".narrow -+>: a,
+      NIso[User \/ Admin, Role]({
+        case -\/(u) => u
+        case \/-(a) => a
+      }, {
+        case u @ User(_)  => -\/(u)
+        case a @ Admin(_) => \/-(a)
+      })
+    )
+
   val current = Current
     .schema(
       caseClass(
         "active".narrow -*>: prim(JsonSchema.JsonBool),
-        Iso[Boolean, User](User.apply)(u => u.active)
+        NIso[Boolean, User](User.apply, u => u.active)
       )
     )
     .schema(
       caseClass(
         "rights".narrow -*>: seq(prim(JsonSchema.JsonString)),
-        Iso[List[String], Admin](Admin.apply)(_.rights)
+        NIso[List[String], Admin](Admin.apply, _.rights)
       )
     )
     .schema(
-      (u: Schema[User], a: Schema[Admin]) =>
-        sealedTrait(
-          "user".narrow -+>: u :+:
-            "admin".narrow -+>: a,
-          Iso[User \/ Admin, Role] {
-            case -\/(u) => u
-            case \/-(a) => a
-          } {
-            case u @ User(_)  => -\/(u)
-            case a @ Admin(_) => \/-(a)
-          }
-        )
+      role
     )
     .schema(
-      (r: Schema[Role]) =>
+      (r: SchemaZ[Role]) =>
         caseClass(
           "name".narrow -*>: prim(JsonSchema.JsonString) :*:
             "role".narrow -*>: optional(
             r
           ),
-          Iso[(String, Option[Role]), Person]((Person.apply _).tupled)(p => (p.name, p.role))
+          NIso[(String, Option[Role]), Person]((Person.apply _).tupled, p => (p.name, p.role))
         )
     )
-    .schema(
-      (p: Schema[Person]) =>
-        iso(
-          SchemaZ[Person, Person](p),
+  /*.schema(
+      (p: SchemaZ[Person]) =>
+        iso[Person, PersonTuple](
+          p,
           Person.personToTupleIso
         )
     )
-
-  val person            = current.lookup[Person]
-  val personTupleSchema = current.lookup[PersonTuple]
+   */
+  val person = current.lookup[Person]
+  // val personTupleSchema = current.lookup[PersonTuple]
 }
