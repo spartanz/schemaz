@@ -1,138 +1,9 @@
 package schemaz
-import scala.annotation.implicitNotFound
 
 import recursion._
 import scalaz.{ -\/, \/, \/-, ~> }
 
-trait Realisation {
-  type Prim[A]
-  type SumTermId
-  type ProductTermId
-}
-
-object Representation {
-  type RSum[RA, A, RB, B]
-  type RProd[RA, A, RB, B]
-  type RSelf[A]
-  type RSeq[R, A]
-  type -*>[K, V]
-  type -+>[K, V]
-  type RRecord[RA, A]
-  type RUnion[RA, A]
-}
-
-trait Distributes[P[_, _], Q[_, _]] {
-  def dist[A0, A1, B0, B1](pa: P[A0, A1], pb: P[B0, B1]): P[Q[A0, B0], Q[A1, B1]]
-}
-
-final case class NIso[A, B](f: A => B, g: B => A) {
-
-  def compose[C](other: NIso[B, C]): NIso[A, C] = NIso(other.f.compose(f), g.compose(other.g))
-}
-
-object NIso {
-
-  def id[A] = NIso[A, A](identity, identity)
-
-  implicit val nisoDistributesOverProduct: Distributes[NIso, Tuple2] =
-    new Distributes[NIso, Tuple2] {
-
-      def dist[A0, A1, B0, B1](pa: NIso[A0, A1], pb: NIso[B0, B1]): NIso[(A0, B0), (A1, B1)] =
-        NIso(p0 => (pa.f(p0._1), pb.f(p0._2)), p1 => (pa.g(p1._1), pb.g(p1._2)))
-    }
-
-  implicit val nisoDistributesOverSum: Distributes[NIso, \/] = new Distributes[NIso, \/] {
-
-    def dist[A0, A1, B0, B1](pa: NIso[A0, A1], pb: NIso[B0, B1]): NIso[A0 \/ B0, A1 \/ B1] =
-      NIso(e0 => e0.bimap(pa.f, pb.f), e1 => e1.bimap(pa.g, pb.g))
-  }
-
-}
-
 import Representation._
-
-trait Transform[F[_]] {
-  def apply[A, B](fa: F[A], niso: NIso[A, B]): F[B]
-}
-
-/**
- * An interpreter able to derive a `F[A]` from a schema for `A` (for any `A`).
- * Such interpreters will usually be implemented using a recursion scheme like
- * 'cataNT`or hyloNT`.
- */
-trait Interpreter[F[_], G[_]] { self =>
-
-  /**
-   * A natural transformation that will transform a schema for any type `A`
-   * into an `F[A]`.
-   */
-  def interpret: F ~> G
-
-  def compose[H[_]](nt: H ~> F) = self match {
-    case i: ComposedInterpreter[h, G, F] => ComposedInterpreter(i.underlying, i.nt.compose(nt))
-    case x                               => ComposedInterpreter(x, nt)
-  }
-}
-
-final case class ComposedInterpreter[F[_], G[_], H[_]](
-  underlying: Interpreter[F, G],
-  nt: H ~> F
-) extends Interpreter[H, G] {
-  final override val interpret = underlying.interpret.compose(nt)
-}
-
-class CataInterpreter[S[_[_], _], F[_]](
-  algebra: HAlgebra[S, F]
-)(implicit ev: HFunctor[S])
-    extends Interpreter[Fix[S, ?], F] {
-  final override val interpret = cataNT(algebra)
-}
-
-class HyloInterpreter[S[_[_], _], F[_], G[_]](
-  coalgebra: HCoalgebra[S, G],
-  algebra: HAlgebra[S, F]
-)(implicit ev: HFunctor[S])
-    extends Interpreter[G, F] {
-  final override val interpret = hyloNT(coalgebra, algebra)
-}
-
-@implicitNotFound(
-  msg = "It seems like the following representation type isn't isomorphic to a product of named fields: ${A}"
-)
-trait IsRecord[A]
-
-object IsRecord {
-  implicit def singleFieldIsRecord[K, V]: IsRecord[K -*> V] = new IsRecord[K -*> V] {}
-
-  implicit def productIsRecord[L: IsRecord, R: IsRecord, X, Y]: IsRecord[RProd[L, X, R, Y]] =
-    new IsRecord[RProd[L, X, R, Y]] {}
-
-  /* implicit def isoIsRecord[R: IsRecord, A0, A]: IsRecord[RIso[R, A0, A]] =
-    new IsRecord[RIso[R, A0, A]] {}
- */
-}
-
-@implicitNotFound(
-  msg = "It seems like the following representation type isn't isomorphic to a sum of named branches: ${A}"
-)
-trait IsUnion[A]
-
-object IsUnion {
-
-  implicit def singleBranchIsUnion[K, V]: IsUnion[K -+> V] = new IsUnion[K -+> V] {}
-
-  implicit def sumIsUnion[L: IsUnion, R: IsUnion, X, Y]: IsUnion[RSum[L, X, R, Y]] =
-    new IsUnion[RSum[L, X, R, Y]] {}
-}
-
-trait Tagged[Repr]
-final class Tag[Repr] {
-  def apply[A](a: A): A with Tagged[Repr] = a.asInstanceOf[A with Tagged[Repr]]
-}
-
-object Tag {
-  def apply[Repr] = new Tag[Repr]
-}
 
 trait SchemaModule[R <: Realisation] {
 
@@ -185,7 +56,7 @@ trait SchemaModule[R <: Realisation] {
     ): SchemaZ.Aux[R0, A0, T] = SchemaZ4[R0, A0, T](p, schema)
   }
 
-  sealed case class SchemaZ4[R0, A0, T](p: NIso[A0, T], schema: Schema[A0] with Tagged[R0])
+  sealed private case class SchemaZ4[R0, A0, T](p: NIso[A0, T], schema: Schema[A0] with Tagged[R0])
       extends SchemaZ[T] {
 
     type Repr = R0
@@ -223,17 +94,6 @@ trait SchemaModule[R <: Realisation] {
   type Record[F[_], A]   = RecordF[F, A, R.Prim, R.SumTermId, R.ProductTermId]
   type Sequence[F[_], A] = SeqF[F, A, R.Prim, R.SumTermId, R.ProductTermId]
   type Self[F[_], A]     = SelfReference[Any, F, A, R.Prim, R.SumTermId, R.ProductTermId]
-
-  object Interpreter {
-
-    def cata[S[_[_], _], F[_]](alg: HAlgebra[S, F])(implicit ev: HFunctor[S]) =
-      new CataInterpreter[S, F](alg)
-
-    def hylo[S[_[_], _], F[_], G[_]](coalg: HCoalgebra[S, G], alg: HAlgebra[S, F])(
-      implicit ev: HFunctor[S]
-    ) = new HyloInterpreter(coalg, alg)
-
-  }
 
   ////////////////
   // Public API

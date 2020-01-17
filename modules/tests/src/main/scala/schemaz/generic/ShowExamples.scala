@@ -23,7 +23,7 @@ object ShowExamples {
     }
 
     implicit val interpreter =
-      Interpreter.cata(showAlgebra(primToShowNT, identity[String], identity[String]))
+      recursion.Interpreter.cata(showAlgebra(primToShowNT, identity[String], identity[String]))
 
   }
 

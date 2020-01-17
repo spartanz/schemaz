@@ -27,7 +27,7 @@ trait GenericGenModule[R <: Realisation] extends GenericSchemaModule[R] {
 
   implicit final def genericGenInterpreter(
     implicit primNT: R.Prim ~> Gen
-  ): RInterpreter[Gen] = Interpreter.cata(
+  ): RInterpreter[Gen] = recursion.Interpreter.cata(
     covariantTargetFunctor(
       primNT,
       λ[Gen ~> λ[X => Gen[List[X]]]](x => Gen.listOf(x)),
