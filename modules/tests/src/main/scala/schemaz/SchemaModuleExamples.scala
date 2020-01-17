@@ -25,7 +25,7 @@ object SchemaModuleExamples {
           NIso[List[String], Admin](Admin.apply, _.rights)
         )
 
-        assert(adminSchema.schema == record(adminRecord).schema)
+        assert(adminSchema.structure == record(adminRecord).structure)
       }
     )
   }
