@@ -448,6 +448,7 @@ project/plugins/project/
 .idea
 .metals/
 .bloop/
+project/metals.sbt
 .sbt-hydra-history
 
 # Travis keys
