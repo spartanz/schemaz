@@ -50,8 +50,8 @@ import scalaz.{\/, -\/, \/-}
 ```tut:silent
 object JsonRealisation extends Realisation {
   type Prim[A] = JsonPrim[A]
-  type SumTermId = String
-  type ProductTermId = String
+  type BranchId = String
+  type FieldId = String
 
   sealed trait JsonPrim[A]
   case object JsonBoolean extends JsonPrim[Boolean]
@@ -61,7 +61,7 @@ object JsonRealisation extends Realisation {
 }
 
 object JsonModule extends SchemaModule[JsonRealisation.type] {
-  val R = JsonRealisation
+  override val realisation = JsonRealisation
 }
 ```
 
