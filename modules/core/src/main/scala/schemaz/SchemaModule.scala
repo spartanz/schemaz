@@ -7,14 +7,15 @@ import Representation._
 
 trait SchemaModule[R <: Realisation] {
 
-  val R: R
+  val realisation: R
 
   type RInterpreter[F[_]] = Interpreter[Schema, F]
 
-  type RSchema[F[_], A] = SchemaF[R.Prim, R.SumTermId, R.ProductTermId, F, A]
+  type RSchema[F[_], A] =
+    SchemaF[realisation.Prim, realisation.BranchId, realisation.FieldId, F, A]
 
   type Schema[A] =
-    Fix[SchemaF[R.Prim, R.SumTermId, R.ProductTermId, ?[_], ?], A]
+    Fix[SchemaF[realisation.Prim, realisation.BranchId, realisation.FieldId, ?[_], ?], A]
 
   trait SchemaZ[T] {
     type Repr
@@ -66,36 +67,58 @@ trait SchemaModule[R <: Realisation] {
 
   }
 
-  implicit class ProductTermIdOps[I <: R.ProductTermId](id: I) {
+  implicit class ProductTermIdOps[I <: realisation.FieldId](id: I) {
 
     def -*> [T](schema: SchemaZ[T]): SchemaZ.Aux[I -*> schema.Repr, schema.A, T] =
       SchemaZ(
         schema.representation,
         Tag[I -*> schema.Repr]
-          .apply[Schema[schema.A]](Fix(FieldF(id.asInstanceOf[R.ProductTermId], schema.structure)))
+          .apply[Schema[schema.A]](
+            Fix(FieldF(id.asInstanceOf[realisation.FieldId], schema.structure))
+          )
       )
   }
 
-  implicit class SumTermIdOps[I <: R.SumTermId](id: I) {
+  implicit class SumTermIdOps[I <: realisation.BranchId](id: I) {
 
     def -+> [T](schema: SchemaZ[T]): SchemaZ.Aux[I -+> schema.Repr, schema.A, T] =
       SchemaZ(
         schema.representation,
         Tag[I -+> schema.Repr]
-          .apply[Schema[schema.A]](Fix(BranchF(id.asInstanceOf[R.SumTermId], schema.structure)))
+          .apply[Schema[schema.A]](
+            Fix(BranchF(id.asInstanceOf[realisation.BranchId], schema.structure))
+          )
       )
   }
 
-  type ROne[F[_]]        = One[F, R.Prim, R.SumTermId, R.ProductTermId]
-  type RPrim[F[_], A]    = PrimSchemaF[F, A, R.Prim, R.SumTermId, R.ProductTermId]
-  type Sum[F[_], A, B]   = SumF[F, A, B, R.Prim, R.SumTermId, R.ProductTermId]
-  type Prod[F[_], A, B]  = ProdF[F, A, B, R.Prim, R.SumTermId, R.ProductTermId]
-  type Branch[F[_], A]   = BranchF[F, A, R.Prim, R.SumTermId, R.ProductTermId]
-  type Union[F[_], A]    = UnionF[F, A, R.Prim, R.SumTermId, R.ProductTermId]
-  type Field[F[_], A]    = FieldF[F, A, R.Prim, R.SumTermId, R.ProductTermId]
-  type Record[F[_], A]   = RecordF[F, A, R.Prim, R.SumTermId, R.ProductTermId]
-  type Sequence[F[_], A] = SeqF[F, A, R.Prim, R.SumTermId, R.ProductTermId]
-  type Self[F[_], A]     = SelfReference[Any, F, A, R.Prim, R.SumTermId, R.ProductTermId]
+  type ROne[F[_]] = One[F, realisation.Prim, realisation.BranchId, realisation.FieldId]
+
+  type RPrim[F[_], A] =
+    PrimSchemaF[F, A, realisation.Prim, realisation.BranchId, realisation.FieldId]
+
+  type Sum[F[_], A, B] =
+    SumF[F, A, B, realisation.Prim, realisation.BranchId, realisation.FieldId]
+
+  type Prod[F[_], A, B] =
+    ProdF[F, A, B, realisation.Prim, realisation.BranchId, realisation.FieldId]
+
+  type Branch[F[_], A] =
+    BranchF[F, A, realisation.Prim, realisation.BranchId, realisation.FieldId]
+
+  type Union[F[_], A] =
+    UnionF[F, A, realisation.Prim, realisation.BranchId, realisation.FieldId]
+
+  type Field[F[_], A] =
+    FieldF[F, A, realisation.Prim, realisation.BranchId, realisation.FieldId]
+
+  type Record[F[_], A] =
+    RecordF[F, A, realisation.Prim, realisation.BranchId, realisation.FieldId]
+
+  type Sequence[F[_], A] =
+    SeqF[F, A, realisation.Prim, realisation.BranchId, realisation.FieldId]
+
+  type Self[F[_], A] =
+    SelfReference[Any, F, A, realisation.Prim, realisation.BranchId, realisation.FieldId]
 
   ////////////////
   // Public API
@@ -111,7 +134,7 @@ trait SchemaModule[R <: Realisation] {
       )
     )
 
-  final def prim[A](prim: R.Prim[A]): SchemaZ.Aux[A, A, A] =
+  final def prim[A](prim: realisation.Prim[A]): SchemaZ.Aux[A, A, A] =
     SchemaZ(
       NIso.id,
       Tag[A].apply[Schema[A]](

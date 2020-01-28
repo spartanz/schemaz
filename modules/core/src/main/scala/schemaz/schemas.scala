@@ -1,9 +1,9 @@
 package schemaz
 
 object ScalaSchema extends Realisation {
-  type Prim[A]       = ScalaPrim[A]
-  type ProductTermId = String
-  type SumTermId     = String
+  type Prim[A]  = ScalaPrim[A]
+  type FieldId  = String
+  type BranchId = String
 
   sealed trait ScalaPrim[A]
 
@@ -22,9 +22,9 @@ object ScalaSchema extends Realisation {
 }
 
 object JsonSchema extends Realisation {
-  type Prim[A]       = JsonPrim[A]
-  type ProductTermId = String
-  type SumTermId     = String
+  type Prim[A]  = JsonPrim[A]
+  type FieldId  = String
+  type BranchId = String
 
   sealed trait JsonPrim[A]
   final case object JsonString extends JsonPrim[String]

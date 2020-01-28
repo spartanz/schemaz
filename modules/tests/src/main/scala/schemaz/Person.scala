@@ -18,7 +18,7 @@ object Person {
 }
 
 trait TestModule extends SchemaModule[JsonSchema.type] with Versioning[JsonSchema.type] {
-  val R = JsonSchema
+  override val realisation = JsonSchema
 
   type PersonTuple = (Seq[Char], Option[Role])
 

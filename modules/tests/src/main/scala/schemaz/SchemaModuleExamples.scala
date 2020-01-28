@@ -8,7 +8,7 @@ object SchemaModuleExamples {
     import harness._
 
     val jsonModule = new examples.JsonModule[JsonSchema.type] {
-      override val R = JsonSchema
+      override val realisation = JsonSchema
     }
 
     import jsonModule._

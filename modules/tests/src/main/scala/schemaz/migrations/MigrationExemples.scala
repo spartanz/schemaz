@@ -18,7 +18,7 @@ object MigrationExamples {
     val jsonModule = new TestModule with HasMigration[JsonSchema.type]
     with examples.JsonModule[JsonSchema.type] with playjson.PlayJsonModule[JsonSchema.type]
     with scalacheck.GenModule[JsonSchema.type] with scalacheck.PrimToGen {
-      override val R = JsonSchema
+      override val realisation = JsonSchema
 
       implicit val jsonPrimWrites = new (JsonSchema.Prim ~> Writes) {
 

@@ -11,7 +11,7 @@ trait GenericSchemaModule[R <: Realisation] extends SchemaModule[R] {
   def discardingBranchLabel[H[_]]: Branch[H, ?] ~> H = λ[Branch[H, ?] ~> H](branch => branch.schema)
 
   def covariantTargetFunctor[H[_]](
-    primNT: R.Prim ~> H,
+    primNT: realisation.Prim ~> H,
     seqNT: H ~> λ[X => H[List[X]]],
     prodLabelNT: Field[H, ?] ~> H,
     sumLabelNT: Branch[H, ?] ~> H,
@@ -35,7 +35,7 @@ trait GenericSchemaModule[R <: Realisation] extends SchemaModule[R] {
     }
 
   def contravariantTargetFunctor[H[_]](
-    primNT: R.Prim ~> H,
+    primNT: realisation.Prim ~> H,
     seqNT: H ~> λ[X => H[List[X]]],
     prodLabelNT: Field[H, ?] ~> H,
     sumLabelNT: Branch[H, ?] ~> H,

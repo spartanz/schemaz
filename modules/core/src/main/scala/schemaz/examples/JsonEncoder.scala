@@ -20,9 +20,9 @@ trait JsonModule[R <: Realisation] extends SchemaModule[R] {
   }
 
   implicit final def encoderInterpreter(
-    implicit primNT: R.Prim ~> Encoder,
-    fieldLabel: R.ProductTermId <~< String,
-    branchLabel: R.SumTermId <~< String
+    implicit primNT: realisation.Prim ~> Encoder,
+    fieldLabel: realisation.FieldId <~< String,
+    branchLabel: realisation.BranchId <~< String
   ): RInterpreter[Encoder] =
     recursion.Interpreter.cata[RSchema, Encoder](new (RSchema[Encoder, ?] ~> Encoder) {
 

@@ -11,7 +11,7 @@ trait GenModule[R <: Realisation] extends SchemaModule[R] {
   }
 
   implicit final def genInterpreter(
-    implicit primNT: R.Prim ~> Gen
+    implicit primNT: realisation.Prim ~> Gen
   ): RInterpreter[Gen] =
     recursion.Interpreter.cata(new (RSchema[Gen, ?] ~> Gen) {
 

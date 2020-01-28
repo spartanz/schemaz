@@ -75,9 +75,9 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
   }
 
   implicit final def readsInterpreter(
-    implicit primNT: R.Prim ~> Reads,
-    branchLabel: R.SumTermId <~< String,
-    fieldLabel: R.ProductTermId <~< String
+    implicit primNT: realisation.Prim ~> Reads,
+    branchLabel: realisation.BranchId <~< String,
+    fieldLabel: realisation.FieldId <~< String
   ): RInterpreter[Reads] =
     Interpreter
       .hylo(
@@ -135,9 +135,9 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
   }
 
   implicit final def writesInterpreter(
-    implicit primNT: R.Prim ~> Writes,
-    branchLabel: R.SumTermId <~< String,
-    fieldLabel: R.ProductTermId <~< String
+    implicit primNT: realisation.Prim ~> Writes,
+    branchLabel: realisation.BranchId <~< String,
+    fieldLabel: realisation.FieldId <~< String
   ): RInterpreter[Writes] =
     Interpreter
       .hylo(

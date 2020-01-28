@@ -36,9 +36,9 @@ trait ShowModule[R <: Realisation] extends GenericSchemaModule[R] {
   }
 
   def showAlgebra(
-    primNT: R.Prim ~> Show,
-    prodLabelToString: R.ProductTermId => String,
-    sumLabelToString: R.SumTermId => String
+    primNT: realisation.Prim ~> Show,
+    prodLabelToString: realisation.FieldId => String,
+    sumLabelToString: realisation.BranchId => String
   ): HAlgebra[RSchema, Show] =
     contravariantTargetFunctor(
       primNT,
