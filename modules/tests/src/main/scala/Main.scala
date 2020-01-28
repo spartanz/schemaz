@@ -1,7 +1,4 @@
-package schemaz
-
-package tests
-
+import schemaz._
 import testz._
 import testz.runner._
 
@@ -41,11 +38,11 @@ object Main {
   def tests[T](harness: Harness[T]): List[(String, T)] =
     List(
       ("Examples", SchemaModuleExamples.tests(harness)),
-      ("JSON", JsonExamples.tests(harness)),
-      ("Scalacheck generators", GenModuleExamples.tests(harness)),
-      ("Generic Show interpreter", ShowExamples.tests(harness)),
-      ("Play-JSON codecs", PlayJsonExamples.tests(harness)),
-      ("Migrations", MigrationExamples.tests(harness))
+      ("JSON", examples.JsonExamples.tests(harness)),
+      ("Scalacheck generators", scalacheck.GenModuleExamples.tests(harness)),
+      ("Generic Show interpreter", generic.ShowExamples.tests(harness)),
+      ("Play-JSON codecs", playjson.PlayJsonExamples.tests(harness)),
+      ("Migrations", migrations.MigrationExamples.tests(harness))
     )
 
   def main(args: Array[String]): Unit = {

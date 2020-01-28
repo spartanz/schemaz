@@ -1,6 +1,5 @@
 package schemaz
 
-package tests
 import scalaz.{ -\/, \/, \/- }
 
 import shapeless.syntax.singleton._
@@ -19,14 +18,14 @@ object Person {
 }
 
 trait TestModule extends SchemaModule[JsonSchema.type] with Versioning[JsonSchema.type] {
-  val R = JsonSchema
+  override val realisation = JsonSchema
 
   type PersonTuple = (Seq[Char], Option[Role])
 
   val role = (u: SchemaZ[User], a: SchemaZ[Admin]) =>
     sealedTrait(
-      "user".narrow -+>: u :+:
-        "admin".narrow -+>: a,
+      "user".narrow -+> u :+:
+        "admin".narrow -+> a,
       NIso[User \/ Admin, Role]({
         case -\/(u) => u
         case \/-(a) => a
@@ -39,13 +38,13 @@ trait TestModule extends SchemaModule[JsonSchema.type] with Versioning[JsonSchem
   val current = Current
     .schema(
       caseClass(
-        "active".narrow -*>: prim(JsonSchema.JsonBool),
+        "active".narrow -*> prim(JsonSchema.JsonBool),
         NIso[Boolean, User](User.apply, u => u.active)
       )
     )
     .schema(
       caseClass(
-        "rights".narrow -*>: seq(prim(JsonSchema.JsonString)),
+        "rights".narrow -*> seq(prim(JsonSchema.JsonString)),
         NIso[List[String], Admin](Admin.apply, _.rights)
       )
     )
@@ -55,8 +54,8 @@ trait TestModule extends SchemaModule[JsonSchema.type] with Versioning[JsonSchem
     .schema(
       (r: SchemaZ[Role]) =>
         caseClass(
-          "name".narrow -*>: prim(JsonSchema.JsonString) :*:
-            "role".narrow -*>: optional(
+          "name".narrow -*> prim(JsonSchema.JsonString) :*:
+            "role".narrow -*> optional(
             r
           ),
           NIso[(String, Option[Role]), Person]((Person.apply _).tupled, p => (p.name, p.role))

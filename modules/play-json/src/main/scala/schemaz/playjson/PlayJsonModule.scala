@@ -1,13 +1,11 @@
-package schemaz
+package schemaz.playjson
 
-package play.json
-
-import recursion._
+import schemaz._, recursion._
 import scalaz.{ -\/, Applicative, \/-, ~> }
 import scalaz.Scalaz._
 import scalaz.Liskov.<~<
-import _root_.play.api.libs.json._
-import _root_.play.api.libs.functional.syntax._
+import play.api.libs.json._
+import play.api.libs.functional.syntax._
 
 trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
 
@@ -77,9 +75,9 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
   }
 
   implicit final def readsInterpreter(
-    implicit primNT: R.Prim ~> Reads,
-    branchLabel: R.SumTermId <~< String,
-    fieldLabel: R.ProductTermId <~< String
+    implicit primNT: realisation.Prim ~> Reads,
+    branchLabel: realisation.BranchId <~< String,
+    fieldLabel: realisation.FieldId <~< String
   ): RInterpreter[Reads] =
     Interpreter
       .hylo(
@@ -137,9 +135,9 @@ trait PlayJsonModule[R <: Realisation] extends SchemaModule[R] {
   }
 
   implicit final def writesInterpreter(
-    implicit primNT: R.Prim ~> Writes,
-    branchLabel: R.SumTermId <~< String,
-    fieldLabel: R.ProductTermId <~< String
+    implicit primNT: realisation.Prim ~> Writes,
+    branchLabel: realisation.BranchId <~< String,
+    fieldLabel: realisation.FieldId <~< String
   ): RInterpreter[Writes] =
     Interpreter
       .hylo(

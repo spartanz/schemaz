@@ -1,7 +1,5 @@
 package schemaz
 
-package tests
-
 import testz._
 
 object SchemaModuleExamples {
@@ -9,8 +7,8 @@ object SchemaModuleExamples {
   def tests[T](harness: Harness[T]): T = {
     import harness._
 
-    val jsonModule = new JsonModule[JsonSchema.type] {
-      override val R = JsonSchema
+    val jsonModule = new examples.JsonModule[JsonSchema.type] {
+      override val realisation = JsonSchema
     }
 
     import jsonModule._
@@ -20,14 +18,14 @@ object SchemaModuleExamples {
         //val adminToListIso  = NIso[Admin, List[String]](_.rights, Admin.apply)
         //def listToSeqIso[A] = NIso[List[A], Seq[A]](_.toSeq, _.toList)
 
-        val adminRecord = "rights" -*>: seq(prim(JsonSchema.JsonString))
+        val adminRecord = "rights" -*> seq(prim(JsonSchema.JsonString))
 
         val adminSchema = caseClass(
           adminRecord,
           NIso[List[String], Admin](Admin.apply, _.rights)
         )
 
-        assert(adminSchema.schema == record(adminRecord).schema)
+        assert(adminSchema.structure == record(adminRecord).structure)
       }
     )
   }

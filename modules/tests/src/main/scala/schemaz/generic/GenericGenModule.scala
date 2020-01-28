@@ -1,6 +1,5 @@
 package schemaz
 
-package tests
 import scalaz.{ Alt, Applicative, ~> }
 import org.scalacheck._
 import generic.GenericSchemaModule
@@ -27,8 +26,8 @@ trait GenericGenModule[R <: Realisation] extends GenericSchemaModule[R] {
   }
 
   implicit final def genericGenInterpreter(
-    implicit primNT: R.Prim ~> Gen
-  ): RInterpreter[Gen] = Interpreter.cata(
+    implicit primNT: realisation.Prim ~> Gen
+  ): RInterpreter[Gen] = recursion.Interpreter.cata(
     covariantTargetFunctor(
       primNT,
       λ[Gen ~> λ[X => Gen[List[X]]]](x => Gen.listOf(x)),

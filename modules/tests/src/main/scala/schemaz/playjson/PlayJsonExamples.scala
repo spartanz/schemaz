@@ -1,6 +1,6 @@
-package schemaz
+package schemaz.playjson
 
-package tests
+import schemaz._
 import scalaz.~>
 import testz._
 import _root_.play.api.libs.json._
@@ -8,17 +8,8 @@ import org.scalacheck._, Prop._, Arbitrary._
 
 object PlayJsonExamples {
 
-  val module = new TestModule with play.json.PlayJsonModule[JsonSchema.type]
-  with scalacheck.GenModule[JsonSchema.type] {
-
-    implicit val primToGenNT = new (JsonSchema.Prim ~> Gen) {
-      override def apply[A](prim: JsonSchema.Prim[A]): Gen[A] = prim match {
-        case JsonSchema.JsonString => arbitrary[String]
-        case JsonSchema.JsonNumber => arbitrary[BigDecimal]
-        case JsonSchema.JsonBool   => arbitrary[Boolean]
-        case JsonSchema.JsonNull   => arbitrary[Unit]
-      }
-    }
+  val module = new TestModule with PlayJsonModule[JsonSchema.type]
+  with scalacheck.GenModule[JsonSchema.type] with scalacheck.PrimToGen {
 
     implicit val jsonPrimWrites = new (JsonSchema.Prim ~> Writes) {
 

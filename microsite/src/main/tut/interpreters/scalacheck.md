@@ -22,10 +22,10 @@ To use it, you'll need to define a module mixing the `schemaz.scalacheck.GenModu
 ```tut:silent
 object ExampleModule extends scalacheck.GenModule[JsonSchema.type] {
   
-  val R = JsonSchema
+  val realisation = JsonSchema
 
-  implicit val primToGen = new (R.Prim ~> Gen) {
-    def apply[A](prim: R.Prim[A]): Gen[A] = prim match {
+  implicit val primToGen = new (realisation.Prim ~> Gen) {
+    def apply[A](prim: realisation.Prim[A]): Gen[A] = prim match {
       case JsonSchema.JsonBool   => arbitrary[Boolean]
       case JsonSchema.JsonNumber => arbitrary[BigDecimal]
       case JsonSchema.JsonString => Gen.alphaNumStr
@@ -43,8 +43,8 @@ final case class Foo(name: String, connected: Boolean)
 import ExampleModule._
 
 val foo = caseClass(
-    "name"      -*>: prim(JsonSchema.JsonString) :*:
-    "connected" -*>: prim(JsonSchema.JsonBool),
+    "name"      -*> prim(JsonSchema.JsonString) :*:
+    "connected" -*> prim(JsonSchema.JsonBool),
     NIso[(String, Boolean), Foo]((Foo.apply _).tupled, f => (f.name, f.connected))
   )
   

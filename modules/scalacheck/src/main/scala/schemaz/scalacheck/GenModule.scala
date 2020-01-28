@@ -1,6 +1,5 @@
-package schemaz
-
-package scalacheck
+package schemaz.scalacheck
+import schemaz._
 
 import org.scalacheck._
 import scalaz.{ -\/, \/-, ~> }
@@ -12,9 +11,9 @@ trait GenModule[R <: Realisation] extends SchemaModule[R] {
   }
 
   implicit final def genInterpreter(
-    implicit primNT: R.Prim ~> Gen
+    implicit primNT: realisation.Prim ~> Gen
   ): RInterpreter[Gen] =
-    Interpreter.cata(new (RSchema[Gen, ?] ~> Gen) {
+    recursion.Interpreter.cata(new (RSchema[Gen, ?] ~> Gen) {
 
       def apply[A](schema: RSchema[Gen, A]): Gen[A] =
         schema match {

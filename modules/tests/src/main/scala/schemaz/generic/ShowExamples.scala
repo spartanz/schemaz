@@ -1,9 +1,9 @@
-package schemaz
+package schemaz.generic
 
-package tests
+import schemaz._
+
 import scalaz.{ Show, ~> }
 import testz._
-import generic._
 
 object ShowExamples {
 
@@ -23,7 +23,7 @@ object ShowExamples {
     }
 
     implicit val interpreter =
-      Interpreter.cata(showAlgebra(primToShowNT, identity[String], identity[String]))
+      recursion.Interpreter.cata(showAlgebra(primToShowNT, identity[String], identity[String]))
 
   }
 

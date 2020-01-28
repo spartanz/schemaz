@@ -1,10 +1,9 @@
-package schemaz
+package schemaz.migrations
 
-package tests
+import schemaz._
 
 import scalaz.~>
 import testz._
-import scalacheck.GenModule
 import org.scalacheck._, Prop._, Arbitrary._
 import _root_.play.api.libs.json._
 import shapeless.syntax.singleton._
@@ -16,10 +15,10 @@ object MigrationExamples {
   def tests[T](harness: Harness[T]): T = {
     import harness._
 
-    val jsonModule = new TestModule with JsonModule[JsonSchema.type] with GenModule[JsonSchema.type]
-    with play.json.PlayJsonModule[JsonSchema.type] with HasMigration[JsonSchema.type]
-    with PrimToGen {
-      override val R = JsonSchema
+    val jsonModule = new TestModule with HasMigration[JsonSchema.type]
+    with examples.JsonModule[JsonSchema.type] with playjson.PlayJsonModule[JsonSchema.type]
+    with scalacheck.GenModule[JsonSchema.type] with scalacheck.PrimToGen {
+      override val realisation = JsonSchema
 
       implicit val jsonPrimWrites = new (JsonSchema.Prim ~> Writes) {
 
@@ -53,7 +52,7 @@ object MigrationExamples {
     val person = version0.lookup[Person]
 
     val personV0 = caseClass(
-      "role" -*>: optional(current.lookup[Role]),
+      "role" -*> optional(current.lookup[Role]),
       NIso[Option[Role], PersonV0](PersonV0.apply, p => p.role)
     )
 
